@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>优惠券条款生成器</title>
+<style>
+  :root{
+    --ink:#1c2024;
+    --ink-soft:#5a6472;
+    --line:#e2e5e9;
+    --line-soft:#edeff2;
+    --bg:#f7f8fa;
+    --panel:#ffffff;
+    --accent:#1e5f74;
+    --accent-soft:#e7f0f2;
+    --warn-bg:#fdf3e7;
+    --warn-ink:#8a5a1f;
+    --warn-line:#f0ddba;
+    --mono:"SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system, "PingFang SC", "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    font-size:14px;
+    line-height:1.6;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:28px 24px 60px;}
+  header.page{margin-bottom:22px;}
+  header.page h1{font-size:19px;font-weight:600;margin:0 0 4px;letter-spacing:.2px;}
+  header.page p{margin:0;color:var(--ink-soft);font-size:13px;}
+
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;}
+  @media (max-width: 920px){ .layout{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 18px 20px;
+  }
+  .card + .card{margin-top:16px;}
+  .card h2{font-size:13px;font-weight:600;margin:0 0 14px;color:var(--ink);}
+  .card h2 .hint{font-weight:400;color:var(--ink-soft);margin-left:6px;font-size:12px;}
+
+  .field{margin-bottom:13px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:5px;}
+  .field label .req{color:#c0432f;margin-left:2px;}
+  .match-hint{font-size:11.5px;margin-top:5px;color:var(--accent);min-height:0;}
+  .match-hint.warn{color:#a35b1f;}
+  .match-hint:empty{display:none;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    background:#fff;
+    color:var(--ink);
+    font-size:13.5px;
+    font-family:inherit;
+  }
+  input:focus, select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
+
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .seg button{
+    flex:1;background:#fff;border:none;padding:8px 6px;font-size:13px;color:var(--ink-soft);
+    cursor:pointer;border-right:1px solid var(--line);
+  }
+  .seg button:last-child{border-right:none;}
+  .seg button.active{background:var(--accent);color:#fff;}
+
+  .checkline{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);}
+  .checkline input{width:auto;}
+
+  .discount-block{display:none;}
+  .discount-block.active{display:block;}
+
+  .out-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;}
+  .out-head h1{font-size:17px;margin:0;}
+  .out-sub{color:var(--ink-soft);font-size:12.5px;}
+
+  .banner{
+    background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-ink);
+    border-radius:8px;padding:10px 14px;font-size:12.5px;margin-bottom:16px;display:none;
+  }
+  .banner.show{display:block;}
+
+  .block{border:1px solid var(--line-soft);border-radius:8px;margin-bottom:12px;overflow:hidden;}
+  .block-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:9px 13px;background:#fafbfc;border-bottom:1px solid var(--line-soft);
+  }
+  .block-head .tag{font-size:11.5px;font-weight:600;color:var(--accent);letter-spacing:.3px;}
+  .block-head .tag small{color:var(--ink-soft);font-weight:400;margin-left:6px;}
+  .copy-btn{
+    border:1px solid var(--line);background:#fff;color:var(--ink-soft);
+    border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;
+  }
+  .copy-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .copy-btn.copied{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .block-body{padding:12px 13px;font-size:13px;white-space:pre-wrap;word-break:break-word;}
+  .block-body.empty{color:#b7bec6;font-style:normal;}
+
+  .snippet-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media (max-width:640px){.snippet-grid{grid-template-columns:1fr;}}
+  .snippet{border:1px solid var(--line-soft);border-radius:7px;padding:8px 10px;}
+  .snippet .k{font-size:11px;color:var(--ink-soft);margin-bottom:3px;}
+  .snippet .v{font-size:12.5px;word-break:break-word;}
+  .snippet .v.empty{color:#c3c9cf;}
+
+  details.more{margin-top:4px;}
+  details.more summary{cursor:pointer;font-size:12.5px;color:var(--accent);padding:6px 0;list-style:none;}
+  details.more summary::-webkit-details-marker{display:none;}
+  details.more summary:before{content:"▸ ";}
+  details.more[open] summary:before{content:"▾ ";}
+
+  .lang-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+  .lang-tabs button{
+    border:1px solid var(--line);background:#fff;color:var(--ink-soft);
+    border-radius:999px;padding:5px 13px;font-size:12.5px;cursor:pointer;
+  }
+  .lang-tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .lang-tabs button[disabled]{opacity:.35;cursor:not-allowed;}
+
+  .empty-state{color:var(--ink-soft);font-size:13px;padding:30px 10px;text-align:center;}
+  footer.foot{margin-top:28px;color:#9aa3ab;font-size:11.5px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <h1>优惠券条款生成器</h1>
+    <p>填写左侧必填字段，右侧自动生成活动名称、各语言条款与文案片段 — 逐条对照原表公式实现</p>
+  </header>
+
+  <div class="layout">
+    <!-- ============ LEFT: INPUTS ============ -->
+    <div class="inputs">
+      <div class="card">
+        <h2>必填信息</h2>
+
+        <div class="field">
+          <label>币种 Curr.<span class="req">*</span></label>
+          <select id="in-curr"></select>
+        </div>
+
+        <div class="field">
+          <label>产品类型<span class="req">*</span></label>
+          <select id="in-product">
+            <option value="F">机票 Flight</option>
+            <option value="H" selected>酒店 Hotel</option>
+            <option value="X">套餐 Bundle&amp;Save</option>
+            <option value="T">中国火车票 China Train</option>
+            <option value="E">国际火车票 International Train</option>
+            <option value="P">门票/体验 Attractions &amp; Tours</option>
+            <option value="CRU">邮轮 Cruise</option>
+            <option value="TOR">旅行团 Packaged Tours</option>
+            <option value="C">租车 Car Rental</option>
+            <option value="A">机场接送 Airport Transfer</option>
+          </select>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>开始日期<span class="req">*</span></label>
+            <input type="date" id="in-start">
+          </div>
+          <div class="field">
+            <label>结束日期<span class="req">*</span></label>
+            <input type="date" id="in-end">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>码类型<span class="req">*</span></label>
+          <div class="seg" id="in-type">
+            <button data-v="Public" class="active">公开码 Public</button>
+            <button data-v="Private">领取码 Private</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>折扣方式<span class="req">*</span></label>
+          <div class="seg" id="in-discmode">
+            <button data-v="fixed" class="active">固定金额</button>
+            <button data-v="pct">百分比封顶</button>
+          </div>
+        </div>
+
+        <div class="discount-block active" id="block-fixed">
+          <div class="row2">
+            <div class="field">
+              <label>立减金额 Discount$<span class="req">*</span></label>
+              <input type="number" id="in-discamt" placeholder="例如 50" value="50">
+            </div>
+            <div class="field">
+              <label>最低消费 Minspend$</label>
+              <input type="number" id="in-minspend1" placeholder="留空=无门槛" value="500">
+            </div>
+          </div>
+        </div>
+
+        <div class="discount-block" id="block-pct">
+          <div class="row2">
+            <div class="field">
+              <label>折扣百分比 %<span class="req">*</span></label>
+              <input type="number" id="in-discpct" placeholder="例如 10 表示10%">
+            </div>
+            <div class="field">
+              <label>封顶金额 Cap$<span class="req">*</span></label>
+              <input type="number" id="in-cap" placeholder="例如 200">
+            </div>
+          </div>
+          <div class="field">
+            <label>最低消费 Minspend$</label>
+            <input type="number" id="in-minspend2" placeholder="留空=无门槛">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>每人可用次数 Usage<span class="req">*</span></label>
+          <input type="number" id="in-usage" value="1" min="1">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>可选信息 <span class="hint">不填则按默认处理</span></h2>
+
+        <div class="field">
+          <label>适用范围 sku <span class="hint">对应 F/H/P 表第一列代码，随产品类型切换列表</span></label>
+          <select id="in-sku"></select>
+          <div class="match-hint" id="sku-match-hint"></div>
+        </div>
+
+        <div class="field">
+          <label>限定支付卡组织 payment</label>
+          <select id="in-payment"></select>
+          <div class="match-hint" id="payment-match-hint"></div>
+        </div>
+
+        <div class="field">
+          <label>时段标签 Tag <span class="hint">对应条款第1条展示的放码时间点</span></label>
+          <select id="in-tag">
+            <option value="">不指定具体时间点</option>
+          </select>
+          <div class="match-hint" id="tag-match-hint">注：活动跨度满 90 天或以上时，第1条按原表设计不展示具体时间点（即使这里选了时间，也不会出现）</div>
+        </div>
+
+        <div class="field">
+          <label>适用平台</label>
+          <div class="seg" id="in-device">
+            <button data-v="app" class="active">仅限 App</button>
+            <button data-v="all">网页+App 全平台</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>出行/入住截止日期</label>
+          <input type="date" id="in-traveldate">
+        </div>
+
+        <div class="field">
+          <label>初始名额数量 <span class="hint">(用于港/台条款第1条)</span></label>
+          <input type="number" id="in-qty" placeholder="例如 100">
+        </div>
+
+        <div class="field">
+          <label class="checkline"><input type="checkbox" id="in-newonly"> 仅限新用户 (New Sign Up)</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RIGHT: OUTPUT ============ -->
+    <div class="outputs">
+      <div class="banner" id="pct-caveat-banner">
+        该币种在原表模板里从未出现过"百分比折扣"的真实案例，第3条措辞已用封顶金额替代折扣金额展示，建议人工核对后再使用。
+      </div>
+
+      <div class="card">
+        <h2>活动名称</h2>
+        <div id="name-blocks"></div>
+      </div>
+
+      <div class="card">
+        <h2>条款 <span class="hint" id="lang-availability-hint"></span></h2>
+        <div class="lang-tabs" id="lang-tabs"></div>
+        <div id="term-blocks"></div>
+      </div>
+
+      <div class="card">
+        <h2>文案片段 <span class="hint">用于拼装落地页/banner等素材</span></h2>
+        <details class="more">
+          <summary>展开查看机制 / 限制 / 适用范围 / 日期 / 支付方式等片段</summary>
+          <div id="snippet-area" style="margin-top:12px;"></div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">所有生成逻辑均基于原 Sheet1 表格公式逐条翻译并用 227 条真实历史数据核对一致</footer>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const DATA = {"currency": [{"code": "CN", "ccy": "CNY", "country": "China", "symbol": "¥"}, {"code": "AU", "ccy": "AUD", "country": "Australia", "symbol": "AU$"}, {"code": "HK", "ccy": "HKD", "country": "Hong Kong", "symbol": "HK$"}, {"code": "ID", "ccy": "IDR", "country": "Indonesia", "symbol": "Rp"}, {"code": "IN", "ccy": "INR", "country": "India", "symbol": "₹"}, {"code": "JP", "ccy": "JPY", "country": "Japan", "symbol": "¥"}, {"code": "KR", "ccy": "KRW", "country": "South Korea", "symbol": "₩"}, {"code": "MO", "ccy": "MOP", "country": "Macau", "symbol": "P"}, {"code": "MY", "ccy": "MYR", "country": "Malaysia", "symbol": "RM"}, {"code": "NZ", "ccy": "NZD", "country": "New Zealand", "symbol": "NZ$"}, {"code": "PH", "ccy": "PHP", "country": "Philippines", "symbol": "₱"}, {"code": "SG", "ccy": "SGD", "country": "Singapore", "symbol": "S$"}, {"code": "TH", "ccy": "THB", "country": "Thailand", "symbol": "฿"}, {"code": "TW", "ccy": "TWD", "country": "Taiwan", "symbol": "NT$"}, {"code": "US", "ccy": "USD", "country": "United States", "symbol": "US$"}, {"code": "VN", "ccy": "VND", "country": "Vietnam", "symbol": "₫"}], "months": [{"num": 1, "en": "January", "id": "Januari", "my": "Januari", "th": "มกราคม"}, {"num": 2, "en": "February", "id": "Februari", "my": "Februari", "th": "กุมภาพันธ์"}, {"num": 3, "en": "March", "id": "Maret", "my": "Mac", "th": "มีนาคม"}, {"num": 4, "en": "April", "id": "April", "my": "April", "th": "เมษายน"}, {"num": 5, "en": "May", "id": "Mei", "my": "Mei", "th": "พฤษภาคม"}, {"num": 6, "en": "June", "id": "Juni", "my": "Jun", "th": "มิถุนายน"}, {"num": 7, "en": "July", "id": "Juli", "my": "Julai", "th": "กรกฎาคม"}, {"num": 8, "en": "August", "id": "Agustus", "my": "Ogos", "th": "สิงหาคม"}, {"num": 9, "en": "September", "id": "September", "my": "September", "th": "กันยายน"}, {"num": 10, "en": "October", "id": "Oktober", "my": "Oktober", "th": "ตุลาคม"}, {"num": 11, "en": "November", "id": "November", "my": "November", "th": "พฤศจิกายน"}, {"num": 12, "en": "December", "id": "Desember", "my": "Disember", "th": "ธันวาคม"}], "times": [{"en": "12AM", "zh": "00:00"}, {"en": "1AM", "zh": "01:00"}, {"en": "2AM", "zh": "02:00"}, {"en": "3AM", "zh": "03:00"}, {"en": "4AM", "zh": "04:00"}, {"en": "5AM", "zh": "05:00"}, {"en": "6AM", "zh": "06:00"}, {"en": "7AM", "zh": "07:00"}, {"en": "8AM", "zh": "08:00"}, {"en": "9AM", "zh": "09:00"}, {"en": "10AM", "zh": "10:00"}, {"en": "11AM", "zh": "11:00"}, {"en": "12PM", "zh": "12:00"}, {"en": "1PM", "zh": "13:00"}, {"en": "2PM", "zh": "14:00"}, {"en": "3PM", "zh": "15:00"}, {"en": "4PM", "zh": "16:00"}, {"en": "5PM", "zh": "17:00"}, {"en": "6PM", "zh": "18:00"}, {"en": "7PM", "zh": "19:00"}, {"en": "8PM", "zh": "20:00"}, {"en": "9PM", "zh": "21:00"}, {"en": "10PM", "zh": "22:00"}, {"en": "11PM", "zh": "23:00"}], "payments": [{"code": "Bank Mega", "en": "Bank Mega Credit Cards", "zh": null, "id": "Kartu Kredit MEGA", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BAY", "en": "Krungsri Bank Visa Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": "บัตรวีซ่าธนาคารกรุงศรี", "vn": null, "jp": null, "kr": null}, {"code": "BCA MCT", "en": "BCA Titanium Mastercard (black) Cards", "zh": null, "id": "Kartu Titanium Mastercard BCA", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BCA MCW", "en": "BCA World Mastercard Cards", "zh": null, "id": "Kartu Mastercard BCA", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BMMC", "en": "Bank Mandiri Mastercard Cards", "zh": null, "id": "Kartu Mastercard Bank Mandiri", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BMVCC", "en": "Bank Mandiri Visa Credit Cards", "zh": null, "id": "Kartu Kredit Bank Mandiri Visa", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BMVDQ", "en": "Bank Mandiri Visa Debit Cards", "zh": null, "id": "Kartu Debit Bank Mandiri Visa", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "BPIMC", "en": "BPI Mastercard Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "CIMB Niaga", "en": "CIMB Niaga Mastercard Cards", "zh": null, "id": "Kartu Mastercard CIMB Niaga", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "CITI", "en": "Citibank Cards", "zh": "花旗银行卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "CITIMC", "en": "Citi Mastercard Cards", "zh": "花旗银行万事达卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "CMBMC", "en": "CMB Wing Lung World Mastercard Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DANA", "en": "DANA", "zh": null, "id": "DANA", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBS", "en": "DBS/POSB Cards", "zh": "星展银行卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBS Vantage", "en": "DBS Vantage Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBS Visa", "en": "DBS Visa Credit Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBS(ID)", "en": "DBS Credit Cards", "zh": null, "id": "Kartu Kredit DBS", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBSLF", "en": "DBS Live Fresh Credit Cards", "zh": "DBS Live Fresh信用卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DBSLIVE", "en": "DBS Chromo Card or DBS TravelLah! Debit Card", "zh": "DBS Chromo 卡或 DBS TravelLah! 借记卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "DCS", "en": "DCS Cards", "zh": "大莱卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "EZLINK", "en": "EZ-Link Mastercard Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBC", "en": "HSBC Cards", "zh": "汇丰银行卡", "id": "Kartu HSBC", "my": "Kad HSBC", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBCMC", "en": "HSBC Mastercard Credit Cards", "zh": "汇丰银行万事达卡", "id": null, "my": "Kad Kredit HSBC Mastercard", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBCMCV", "en": "HSBC Mastercard & Visa Credit Cards", "zh": "汇丰银行万事达Visa卡", "id": null, "my": "Kad Kredit HSBC Mastercard & Visa", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBCP", "en": "HSBC Premier Credit Cards", "zh": "汇丰卓越理財信用卡", "id": null, "my": "Kad Kredit HSBC Premier", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBCT1", "en": "HSBC TravelOne Credit Cards", "zh": "汇丰银行旅人卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "HSBCV", "en": "HSBC Visa Credit Cards", "zh": "汇丰银行Visa卡", "id": null, "my": "Kad Kredit Visa", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "JeniusCC", "en": "SMBC Indonesia Visa Credit Cards", "zh": null, "id": "Kartu Kredit Jenius", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "JeniusDQ", "en": "SMBC Indonesia Visa Debit Cards", "zh": null, "id": "Kartu Debit Jenius", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "KbankCC", "en": "KBank Credit Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": "บัตรเครดิตธนาคารเคแบงก์", "vn": null, "jp": null, "kr": null}, {"code": "KbankDQ", "en": "Kbank Debit Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": "บัตรเดบิต Kbank", "vn": null, "jp": null, "kr": null}, {"code": "MasterCard", "en": "MasterCard Cards", "zh": "万事达卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "MC", "en": "World and World Elite Mastercard Cards", "zh": "万事达世界和世界之极卡", "id": null, "my": null, "hk": null, "tw": "萬事達卡\"世界卡\"和\"世界之極卡\"", "th": "World และ World Elite Mastercard", "vn": "Mastercard World & World Elite", "jp": "ワールドMASTERCARDまたはワールドエリートMASTERCARD ", "kr": "월드(WORLD) 및 월드 엘리트(WORLD ELITE) 마스터카드"}, {"code": "MS G&P", "en": "Bank Mega Syariah Gold & Platinum Cards", "zh": null, "id": "Kartu Gold & Platinum Bank Mega Syariah", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "MS Gold", "en": "Bank Mega Syariah Gold Cards", "zh": null, "id": "Kartu Gold Bank Mega Syariah", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "MS Platinum", "en": "Bank Mega Syariah Platinum Cards", "zh": null, "id": "Kartu Platinum Bank Mega Syariah", "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "OCBC", "en": "OCBC Cards", "zh": "华侨银行卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "OCBCMC", "en": "OCBC Mastercard Cards", "zh": "OCBC万事达卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "OCBCV", "en": "OCBC Visa Cards", "zh": "华侨银行Visa卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "OVO", "en": "OVO", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "RHBMC", "en": "RHB Mastercard Cards", "zh": "RHB万事达卡", "id": null, "my": "Kad Mastercard RHB", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "SCB", "en": "Standard Chartered Credit Cards", "zh": "渣打银行信用卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "SHCBMC1", "en": "Shanghai Commercial Bank Mastercard (BIN 515702) Cards", "zh": null, "id": null, "my": null, "hk": "上海商業銀行萬事達卡 (BIN 515702)", "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "SHCBMC2", "en": "Shanghai Commercial Bank Mastercard (BIN 541442, 546620, 548829, 552118) Cards", "zh": null, "id": null, "my": null, "hk": "上海商業銀行萬事達卡 (BIN 541442, 546620, 548829, 552118)", "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "SPL", "en": "SPayLater", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "TB", "en": "Trustbank Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "UOB", "en": "UOB Cards", "zh": "大华银行卡", "id": "Kartu UOB", "my": "Kad UOB", "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "UPI", "en": "UnionPay Cards", "zh": "银联国际卡", "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}, {"code": "Visa", "en": "Visa Cards", "zh": "Visa卡", "id": "Kartu Visa", "my": "Kad Visa", "hk": null, "tw": null, "th": "บัตรวีซ่า", "vn": null, "jp": null, "kr": null}, {"code": "Visa Infinite", "en": "Visa Infinite Cards", "zh": "Visa無限卡", "id": "Kartu Visa Infinite", "my": "Kad Visa Infinite", "hk": null, "tw": null, "th": "บัตรวีซ่าอินฟินิต", "vn": "Thẻ Visa Infinite", "jp": "Visa Infiniteカード", "kr": null}, {"code": "Youtrip", "en": "Mastercard YouTrip Cards", "zh": null, "id": null, "my": null, "hk": null, "tw": null, "th": null, "vn": null, "jp": null, "kr": null}], "prodtypes": [{"code": "F", "en": "Flight", "zh": "机票"}, {"code": "H", "en": "Hotel", "zh": "住宿"}, {"code": "T", "en": "China Train", "zh": "火车票"}, {"code": "E", "en": "International Train", "zh": "火车票"}, {"code": "P", "en": "Attractions & Tours", "zh": "门票/体验"}, {"code": "CRU", "en": "Cruise", "zh": "邮轮"}, {"code": "TOR", "en": "Packaged Tours", "zh": "旅行团"}, {"code": "C", "en": "Car Rental", "zh": "租车"}, {"code": "A", "en": "Airport Transfer", "zh": "机场接送"}, {"code": "X", "en": "Bundle&Save", "zh": "机+酒套餐"}], "F": [{"sku": "all", "en": "all participating flights on Trip.com, both one-way and round-trip, excluding China domestic flight bookings", "cn": "所有参与活动的航班(不含中国大陆境内航班)", "id": "semua penerbangan yang berpartisipasi, kecuali untuk pemesanan penerbangan domestik China", "my": "semua penerbangan yang mengambil bahagian, tidak termasuk tempahan penerbangan domestik China", "th": "เที่ยวบินที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ ยกเว้นการจองเที่ยวบินภายในประเทศจีน", "vn": "áp dụng cho mọi chặng bay, mọi hãng bay, hạng khoang và điểm đến (ngoại trừ các đường bay nội địa Trung Quốc)", "hk": "單程或來回機票產品(僅適用於單筆交易, 不包括附加費, 中國內陸航段除外)", "tw": "單程或來回機票產品(僅適用於單筆交易, 不包括附加費, 中國內陸航段除外)", "jp": "Trip.comで予約可能な対象フライト（片道・往復）すべて。ただし、中国国内線は対象外です。"}, {"sku": "domob", "en": "flights with your country departure", "cn": "本国出发的航班", "id": "penerbangan berangkat dari Indonesia", "my": "penerbangan berlepas dari Malaysia", "th": "เที่ยวบินเส้นทางจากประเทศไทยหรือเที่ยวบินในประเทศที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ", "vn": "chuyến bay khởi hành từ Việt Nam", "hk": null, "tw": null, "jp": null}, {"sku": "domob2", "en": "flights with your country departure with minimum 2 passengers per booking", "cn": "本国出发的航班(最少2人出行)", "id": "penerbangan berangkat dari Indonesia dengan minimal 2 penumpang", "my": "penerbangan berlepas dari Malaysia dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "domob3", "en": "flights with your country departure with minimum 3 passengers per booking", "cn": "本国出发的航班(最少3人出行)", "id": "penerbangan berangkat dari Indonesia dengan minimal 3 penumpang", "my": "penerbangan berlepas dari Malaysia dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "domob(FC)", "en": "Business and First Class flights with your country departure", "cn": "本国出发的航班限商务舱/头等舱", "id": null, "my": "Kelas perniagaan dan Kelas pertama dari Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "domob(C)", "en": "Business Class flights with your country departure", "cn": "本国出发的航班限商务舱", "id": null, "my": "Kelas perniagaan dari Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "dom", "en": "domestic flights (from your country to your country)", "cn": "本国境内航班", "id": "penerbangan domestik (ke Indonesia)", "my": "penerbangan domestik (dari Malaysia ke Malaysia)", "th": "เที่ยวบินภายในประเทศไทย", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "domrt", "en": "domestic round-trip flights", "cn": "本国境内航班限往返机票", "id": null, "my": null, "th": "เที่ยวบินภายในประเทศแบบไป-กลับ", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "dom2rt", "en": "domestic round-trip flights with minimum 2 passengers per booking", "cn": "本国境内航班(限往返机票)最少2人出行", "id": null, "my": "penerbangan domestik dengan minimum 2 penumpang setiap tempahan (perjalanan pergi balik sahaja)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "intl", "en": "international flights (from your country to oversea)", "cn": "国际航班", "id": "penerbangan Internasional (Indonesia - Luar Negeri)", "my": "penerbangan antarabangsa (Malaysia - Luar Negara)", "th": null, "vn": "Bay quốc tế", "hk": null, "tw": null, "jp": null}, {"sku": "ob", "en": "outbound flights (from your country to oversea)", "cn": "本国飞往境外的航班", "id": "penerbangan Internasional (Indonesia - Luar Negeri)", "my": "penerbangan antarabangsa (Malaysia - Luar Negara)", "th": null, "vn": "chuyến bay từ Việt Nam đi quốc tế", "hk": null, "tw": null, "jp": null}, {"sku": "ob2", "en": "outbound flights with minimum 2 passengers per booking", "cn": "本国飞往境外的航班(最少2人出行)", "id": "penerbangan Internasional (Indonesia - Luar Negeri) dengan minimal 2 penumpang", "my": "penerbangan keluar dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ob3", "en": "outbound flights with minimum 3 passengers per booking", "cn": "本国飞往境外的航班(最少3人出行)", "id": "penerbangan Internasional (Indonesia - Luar Negeri) dengan minimal 3 penumpang", "my": "penerbangan keluar dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ob4fsc", "en": "selected outbound flights with minimum 4 passengers per booking", "cn": "本国飞往境外的航班(限部分航司)最少4人出行", "id": null, "my": "penerbangan keluar terpilih dengan minimum 4 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ib", "en": "inbound flights (from oversea to your country)", "cn": "境外飞往本国的航班", "id": "penerbangan Internasional (Luar Negeri - Indonesia)", "my": "penerbangan antarabangsa (Luar Negara - Malaysia)", "th": null, "vn": "chuyến bay đến Việt Nam", "hk": null, "tw": null, "jp": null}, {"sku": "obib", "en": "outbound and inbound flights (from your country to oversea, or from oversea to your country)", "cn": "本国出发及飞往本国的航班", "id": null, "my": null, "th": null, "vn": "chuyến bay khởi hành/đến từ Việt Nam", "hk": null, "tw": null, "jp": null}, {"sku": "selected", "en": "selected flights", "cn": "部分航班", "id": "penerbangan terpilih", "my": "penerbangan terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected(domob)", "en": "flights from your country with selected airlines", "cn": "本国出发的航班(限部分航司)", "id": null, "my": "penerbangan berlepas dari Malaysia dengan penerbangan terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected(domob)(C)", "en": "Business Class flights with your country departure with selected airlines", "cn": "本国出发的航班(限部分航司)商务舱", "id": null, "my": "Kelas perniagaan penerbangan berlepas dari Malaysia dengan penerbangan terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected(dom)", "en": "domestic flights with selected airlines", "cn": "部分航司的本国境内航班", "id": null, "my": "penerbangan domestik dengan penerbangan terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected(intl)", "en": "international flights with selected airlines", "cn": "部分航司的国际航班", "id": null, "my": "penerbangan antarabangsa dengan penerbangan terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "C", "en": "Business Class flights only", "cn": "商务舱", "id": null, "my": "Kelas perniagaan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Y", "en": "Economy Class flights only", "cn": "经济舱", "id": null, "my": "Kelas ekonomi", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CS", "en": "Premium Economy and Business Class flights", "cn": "超级经济舱/商务舱", "id": null, "my": "Kelas ekonomi premium dan Kelas perniagaan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FIRST", "en": "First Class flights", "cn": "头等舱", "id": null, "my": "Kelas pertama", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FC", "en": "Business and First Class flights", "cn": "商务舱/头等舱", "id": null, "my": "Kelas perniagaan dan Kelas pertama", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FCS", "en": "Premium Economy, Business and First Class flights", "cn": "超级经济舱/商务舱/头等舱", "id": null, "my": "Kelas ekonomi premium, Kelas perniagaan dan Kelas pertama", "th": "เที่ยวบินชั้นประหยัดพิเศษ ชั้นธุรกิจ และชั้นเฟิร์สคลาส", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "3PAX", "en": "flights with minimum 3 passengers per booking", "cn": "最少3人出行", "id": "penerbangan dengan minimal 3 penumpang", "my": "penerbangan dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "2PAX", "en": "flights with minimum 2 passengers per booking", "cn": "最少2人出行", "id": "penerbangan dengan minimal 2 penumpang", "my": "penerbangan dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "5J", "en": "Cebu Pacific (5J) flights", "cn": "宿务太平洋航空(5J)", "id": "Cebu Pacific (5J) ", "my": "Cebu Pacific (5J) ", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "6E", "en": "Indigo (6E) flights", "cn": "印度靛蓝航空(6E)", "id": "Indigo (6E)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "6E(INSA)", "en": "Indigo (6E) flights to India and Saudi Arabia", "cn": null, "id": "penerbangan ke India / Arab Saudi dengan Indigo (6E)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "6E(ob)", "en": "Indigo (6E) flights to oversea", "cn": "飞往境外的印度靛蓝航空(6E)航班", "id": "Indigo (6E) flights ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "8B", "en": "Transnusa Airline (8B) flights", "cn": null, "id": "Transnusa Airline (8B)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "9G", "en": "Sun PhuQuoc Airways (9G) flights", "cn": "太陽富國航空(9G)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Airasia", "en": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT) flights", "cn": "亚洲航空(AK/D7/QZ/FD/XJ/Z2/KT)", "id": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT)", "my": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Airasia(domob)", "en": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT) flights from your country", "cn": "本国出发的亚航(D7)航班", "id": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT) dari Indonesia", "my": "Airasia (AK/D7/QZ/FD/XJ/Z2/KT)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AK(dom)", "en": "Airasia (AK) domestic flights", "cn": null, "id": "penerbangan domestik (ke Indonesia)", "my": "domestik penerbangan dengan Airasia (AK)", "th": "เที่ยวบินของ Thai AirAsia ที่เดินทางจากประเทศไทยสู่เส้นทางทั่วโลกที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "D7(China)", "en": "Airasia (D7) flights to China (excluding Hong Kong and Taiwan)", "cn": "飞往中国(不含港澳台)的亚航(D7)航班", "id": null, "my": "Airasia (D7) ke China (kecuali Hong Kong dan Taiwan)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QZ+", "en": "Airasia (QZ) flights on selected routes: JKT-BKK, JKT-KUL, JKT-PEN, JKT-SIN, DPS-SIN, MES-KUL, SUB-KUL, SUB-SIN, DPS-PER, DPS-BKK", "cn": null, "id": "penerbangan Airasia (QZ) pada rute pilihan: JKT-BKK, JKT-KUL, JKT-PEN, JKT-SIN, DPS-SIN, MES-KUL, SUB-KUL, SUB-SIN, DPS-PER, DPS-BKK", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FD+", "en": "Thai AirAsia (FD) flights on selected routes: BKK - CEI, CNX, HDY, HKT, KBV, KKC, NST, UBP, URT, UTH", "cn": null, "id": null, "my": null, "th": "เที่ยวบินไทยแอร์เอเชีย (FD) เส้นทางที่เลือก: BKK - CEI, CNX, HDY, HKT, KBV, KKC, NST, UBP, URT, UTH", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Airasia baggage", "en": "checked baggage of Airasia (AK/FD/QZ/Z2/D7/XJ/KT) economy flights", "cn": "亚航(AK/FD/QZ/Z2/D7/XJ/KT)经济舱的托运行李", "id": "bagasi terdaftar penerbangan kelas ekonomi Airasia (AK/FD/QZ/Z2/D7/XJ/KT)", "my": "bagasi berdaftar penerbangan ekonomi Airasia (AK/FD/QZ/Z2/D7/XJ/KT)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AC", "en": "Air Canada (AC) flights", "cn": "加拿大航空(AC)", "id": "Air Canada (AC)", "my": "Air Canada (AC)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AC(domob)", "en": "Air Canada (AC) flights from your country", "cn": "本国出发的加航(AC)航班", "id": "Air Canada (AC) dari Indonesia", "my": "Air Canada (AC)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AC(Y)", "en": "Economy flights with Air Canada (AC)", "cn": "加航(AC)经济舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AF", "en": "Air France (AF) flights", "cn": "法国航空(AF)", "id": "Air France (AF)", "my": "Air France (AF)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AI", "en": "Air India (AI) flights", "cn": "印度航空(AI)", "id": "Air India (AI)", "my": "Air India (AI)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BR", "en": "Eva Air (BR) flights", "cn": "长荣航空(BR)", "id": "Eva Air (BR)", "my": "Eva Air (BR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BR(domob)", "en": "Eva Air (BR) flights from your country", "cn": "本国出发的长荣(BR)航班", "id": "Eva Air (BR) dari Indonesia", "my": "Eva Air (BR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BR(TW)", "en": "Eva Air (BR) flights to Taiwan", "cn": "飞往台湾的长荣(BR)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CA", "en": "Air China (CA) flights", "cn": "中国国际航空(CA)", "id": "Air China (CA)", "my": "Air China (CA)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CI", "en": "China Airlines (CI) flights", "cn": "中华航空(CI)", "id": "China Airlines (CI)", "my": "China Airlines (CI)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CI(domob)", "en": "China Airlines (CI) flights from your country", "cn": "本国出发的中华航空(CI)航班", "id": "China Airlines (CI) dari Indonesia", "my": "China Airlines (CI)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CI(TPE)", "en": "China Airlines (CI) flights to Taipei", "cn": "飞往台北的中华航空(CI)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CX", "en": "Cathay Pacific (CX) flights", "cn": "国泰航空(CX)", "id": "Cathay Pacific (CX)", "my": "Cathay Pacific (CX)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CX(domob)", "en": "Cathay Pacific (CX) flights from your country", "cn": "本国出发的国泰(CX)航班", "id": "Cathay Pacific (CX) dari Indonesia", "my": "Cathay Pacific (CX)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CX(ob)", "en": "Cathay Pacific (CX) flights to oversea", "cn": "飞往境外的国泰(CX)航班", "id": "Cathay Pacific (CX) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CZ", "en": "China Southern Airlines (CZ) flights", "cn": "中国南方航空(CZ)", "id": "China Southern Airlines (CZ)", "my": "China Southern Airlines (CZ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "EK", "en": "Emirates (EK) flights", "cn": "阿联酋航空(EK)", "id": "Emirates (EK)", "my": "Emirates (EK)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ET", "en": "Ethiopian Airlines (ET) flights", "cn": "埃塞俄比亚航空(ET)", "id": "Ethiopian Airlines (ET)", "my": "Ethiopian Airlines (ET)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FY", "en": "Firefly (FY) flights", "cn": "马来西亚飞萤航空(FY)", "id": null, "my": "Firefly (FY) ", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FY(dom)", "en": "Firefly (FY) domestic flights", "cn": "境内的飞萤航空(FY)航班", "id": null, "my": "penerbangan domestik dengan Firefly (FY)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FY(ob)", "en": "Firefly (FY) flights to oversea", "cn": "飞往境外的飞萤航空(FY)航班", "id": null, "my": "penerbangan antarabangsa dengan Firefly (FY)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "GF", "en": "Gulf Air (GF) flights", "cn": "海湾航空(GF)", "id": "Gulf Air (GF)", "my": "Gulf Air (GF)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JL", "en": "Japan Airlines (JL) flights", "cn": "日本航空(JL)", "id": "Jepang Airlines (JL)", "my": "Jepun Airlines (JL)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JX", "en": "Starlux Airlines (JX) flights", "cn": "星宇航空(JX)", "id": "Starlux Airlines (JX)", "my": "Starlux Airlines (JX)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JX(domob)", "en": "Starlux Airlines (JX) flights from your country", "cn": "本国出发的星宇航空(JX)航班", "id": "Starlux Airlines (JX) dari Indonesia", "my": "Starlux Airlines (JX) dari Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KE", "en": "Korean Air (KE) flights", "cn": "大韩航空(KE)", "id": "Korean Air (KE)", "my": "Korean Air (KE)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KE(KR)", "en": "Korean Air (KE) flights to Korea", "cn": "飞往韩国的大韩航空(KE)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MF", "en": "Xiamen Airlines (MF) flights", "cn": "中国厦门航空(MF)", "id": "Xiamen Airlines (MF) ", "my": "Xiamen Airlines (MF) ", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MF(domob)", "en": "Xiamen Airlines (MF) flights from your country", "cn": "本国出发的厦门航空(MF)航班", "id": "Xiamen Airlines (MF) dari Indonesia", "my": "Xiamen Airlines (MF) dari Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH", "en": "Malaysia Airlines (MH) flights", "cn": "马来西亚航空(MH)", "id": "Malaysia Airlines (MH)", "my": "Malaysia Airlines (MH)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH+", "en": "Malaysia Airlines (MH) flights to selected destinations as follows: ", "cn": "部分马航(MH)航班", "id": null, "my": "Malaysia Airlines (MH) ke China, Hong Kong, Taipei, Jepun, Korea dengan Singapore Airlines (SQ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(domob)", "en": "Malaysia Airlines (MH) flights from your country", "cn": "本国出发的马航(MH)航班", "id": "Malaysia Airlines (MH) dari Indonesia", "my": "Malaysia Airlines (MH) dari Malaysia", "th": "เที่ยวบินของ Malaysia Airlines ที่เดินทางจากประเทศไทยสู่เส้นทางทั่วโลกที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(domob)(C)", "en": "Malaysia Airlines (MH) Business Class flights from your country", "cn": "本国出发的马航(MH)商务舱", "id": null, "my": "Kelas perniagaan dengan Malaysia Airlines (MH) dali Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(domob)(Y)", "en": "Malaysia Airlines (MH) Economy Class flights from your country", "cn": "本国出发的马航(MH)经济舱", "id": null, "my": "Kelas ekonomi dengan Malaysia Airlines (MH) dari Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(intl)", "en": "international flights with Malaysia Airlines (MH)", "cn": null, "id": null, "my": "antarabangsa penerbangan dengan Malaysia Airlines (MH)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(dom)", "en": "Malaysia Airlines (MH) domestic flights", "cn": "境内的马航(MH)航班", "id": null, "my": "domestik penerbangan dengan Malaysia Airlines (MH)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(intl-C)", "en": "international Business Class flights with Malaysia Airlines (MH)", "cn": null, "id": null, "my": "Kelas perniagaan antarabangsa penerbangan dengan Malaysia Airlines (MH)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MH(C)", "en": "Malaysia Airlines (MH) Business Class flights", "cn": "马航(MH)商务舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MU", "en": "China Eastern Airlines (MU) flights", "cn": "中国东方航空(MU)", "id": "China Eastern Airlines (MU)", "my": "China Eastern Airlines (MU)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MU(C)", "en": "China Eastern Airlines (MU) Business Class flights", "cn": "中国东方航空(MU)商务舱", "id": null, "my": "Kelas perniagaan China Eastern Airlines (MU)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MU(domob)", "en": "China Eastern Airlines (MU) flights from your country", "cn": "本国出发的中国东方航空(MU)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NH", "en": "ANA (NH) flights", "cn": "全日空航空(NH)", "id": "ANA (NH)", "my": "ANA (NH)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZ", "en": "Air New Zealand (NZ) flights", "cn": "新西兰航空(NZ)", "id": "Air New Zealand (NZ)", "my": "Air New Zealand (NZ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZ(Y)", "en": "Economy flights with Air New Zealand (NZ)", "cn": "新西兰航空(NZ)经济舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZ(S)", "en": "Premium Economy flights with Air New Zealand (NZ)", "cn": "新西兰航空(NZ)超级经济舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZ(C)", "en": "Business flights with Air New Zealand (NZ)", "cn": "新西兰航空(NZ)商务舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "OZ", "en": "Asiana Airlines (OZ) flights", "cn": "韩亚航空(OZ)", "id": "Asiana Airlines (OZ)", "my": "Asiana Airlines (OZ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PR", "en": "Philippine Airlines (PR) flights", "cn": "菲律宾航空(PR)", "id": "Philippine Airlines (PR) ", "my": "Philippine Airlines (PR) ", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PR(domob)", "en": "Philippine Airlines (PR) flights from your country", "cn": "本国出发的菲律宾航空(PR)航班", "id": "Philippine Airlines (PR) dari Indonesia", "my": "Philippine Airlines (PR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PR(ob)", "en": "Philippine Airlines (PR) flights to oversea", "cn": "飞往境外的菲律宾航空(PR)航班", "id": "Philippine Airlines (PR) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PR(JP)", "en": "Philippine Airlines (PR) flights to Japan", "cn": null, "id": "Philippine Airlines (PR) ke Japun", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QF", "en": "Qantas (QF) flights", "cn": "澳洲航空(QF)", "id": "Qantas (QF)", "my": "Qantas (QF)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QF(ob)", "en": "Qantas (QF) flights to oversea", "cn": "飞往境外的澳航(QF)航班", "id": "Qantas (QF) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QF(domob)", "en": "Qantas (QF) flights from your country", "cn": "本国出发的澳航(QF)航班", "id": "Qantas (QF) dari Indonesia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QF(FC)", "en": "Qantas (QF) Business & First Class flights", "cn": "澳航(QF)头等舱/商务舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QF(Y)", "en": "Qantas (QF) Economy Class flights", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QG", "en": "Citilink (QG) flights", "cn": "连城航空(QG)", "id": "Citilink (QG)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "lion", "en": "flights with Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "cn": null, "id": "penerbangan dengan Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "lion select", "en": "selected flights with Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "cn": null, "id": "terpilih penerbangan dengan Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "non-lion", "en": "all flights except Lion Group (JT/UI/ID)", "cn": null, "id": "semua penerbangan kecuali Lion Group (JT/UI/ID)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "lion(dom)", "en": "domestic flights with Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "cn": null, "id": "penerbangan domestik dengan Lion Air (JT), Super Air Jet (IU), Batik Air (ID)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "lion+(dom)", "en": "domestic flights with Lion Air (JT), Super Air Jet (IU), Batik Air (ID), Citilink (QG)", "cn": null, "id": "penerbangan domestik dengan Lion Air (JT), Super Air Jet (IU), Batik Air (ID), Citilink (QG)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QG(domob)", "en": "Citilink (QG) flights from your country", "cn": "本国出发的连城航空(QG)航班", "id": "Citilink (QG) dari Indonesia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QG(dom)", "en": "Citilink (QG) domestic flights", "cn": "境内的连城航空(QG)航班", "id": "penerbangan domestik dengan Citilink (QG)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QG(ob)", "en": "Citilink (QG) flights to oversea", "cn": "飞往境外的连城航空(QG)航班", "id": "Citilink (QG) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QR", "en": "Qatar Airways (QR) flights", "cn": "卡塔尔航空(QR)", "id": "Qatar Airways (QR)", "my": "Qatar Airways (QR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QR(domob)", "en": "Qatar Airways (QR) flights from your country", "cn": "本国出发的卡塔尔航空(QR)航班", "id": "Qatar Airways (QR) dari Indonesia", "my": "Qatar Airways (QR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QR(domob)(C)", "en": "Qatar Airways (QR) Business Class flights from your country", "cn": "本国出发的卡塔尔航空(QR)商务舱", "id": null, "my": "Kelas perniagaan dengan Qatar Airways (QR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "QR(domob)(Y)", "en": "Qatar Airways (QR) Economy Class flights from your country", "cn": "本国出发的卡塔尔航空(QR)经济舱", "id": null, "my": "Kelas ekonomi dengan Qatar Airways (QR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ", "en": "Singapore Airlines (SQ) flights", "cn": "新加坡航空(SQ)", "id": "Singapore Airlines (SQ)", "my": "Singapore Airlines (SQ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(selected)", "en": "selected Singapore Airlines (SQ) flights", "cn": "部分新加坡航空(SQ)", "id": null, "my": "penerbangan Singapore Airlines (SQ) terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(selected)(C)", "en": "selected Business Class flights with Singapore Airlines (SQ)", "cn": "部分新加坡航空(SQ)商务舱", "id": null, "my": "penerbangan Kelas Perniagaan terpilih dengan Singapore Airlines (SQ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ+", "en": "Singapore Airlines (SQ) flights to Beijing, Chengdu, Hangzhou, ShenZhen, Taipei", "cn": "飞往北京成都杭州深圳台北的新航(SQ)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ2", "en": "Singapore Airlines (SQ) flights with minimum 2 passengers per booking", "cn": "新航(SQ)最少2人出行", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(ob)", "en": "Singapore Airlines (SQ) flights to oversea", "cn": "飞往境外的新航(SQ)航班", "id": "Singapore Airlines (SQ) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(FCS)", "en": "Premium Economy, Business and First Class flights with Singapore Airlines (SQ)", "cn": "新航(SQ)头等舱/商务舱/超级经济舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(FC)", "en": "Business and First Class flights with Singapore Airlines (SQ)", "cn": "新航(SQ)头等舱/商务舱", "id": null, "my": "penerbangan Perniagaan dan Kelas Pertama dengan Singapore Airlines (SQ)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQLH", "en": "Singapore Airlines (SQ), Lufthansa (LH), Swiss (LX), Brussels Airlines (SN), Austrian Airlines (OS) flights", "cn": "新加坡航空(SQ), 汉莎航空(LH), 瑞士国际航空(LX), 布鲁塞尔航空(SN), 奥地利航空(OS)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQQF(AU)", "en": "Singapore Airlines (SQ) and Qantas (QF) flights to Australia", "cn": "飞往澳大利亚的新航(SQ)和澳航(QF)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ-short", "en": "Singapore Airlines (SQ) flights to China (including HKTWMO), Japan, Korea, Perth", "cn": "飞往大中华区(含港澳台)日韩和珀斯的新航(SQ)航班", "id": null, "my": "Singapore Airlines (SQ) ke China (termasuk HKTWMO), Jepun, Korea, Perth", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ-long", "en": "Singapore Airlines (SQ) flights to Australia (excluding Perth)", "cn": "飞往澳洲(珀斯除外)的新航(SQ)航班", "id": null, "my": "Singapore Airlines (SQ) ke Australia (kecuali Perth)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ(EU)", "en": "Singapore Airlines (SQ) flights to Europe", "cn": "飞往欧洲的新航(SQ)航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQrt", "en": "Singapore Airlines (SQ) round-trip flights", "cn": "新航(SQ)往返机票", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SV", "en": "Saudia (SV) flights", "cn": "沙特航空(SV)", "id": "Saudia (SV)", "my": "Saudia (SV)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SV(SA)", "en": "Saudia (SV) flights to Saudi Arabia", "cn": null, "id": "Saudia (SV) ke Arab Saudi", "my": "Saudia (SV) ke Arab Saudi", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG", "en": "Thai Airways (TG) flights", "cn": "泰国航空(TG)", "id": "Thai Airways (TG)", "my": "Thai Airways (TG)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG(TH)", "en": "Thai Airways (TG) flights to Thailand", "cn": "飞往泰国的泰航(TG)航班", "id": "Thai Airways (TG) ke Thailand", "my": "Thai Airways (TG) ke Thailand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG(FC)", "en": "Business and First Class flights with Thai Airways (TG)", "cn": "泰航(TG)头等舱/商务舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG(domob)(FC)", "en": "Business and First Class flights with Thai Airways (TG)", "cn": "本国出发的泰航(TG)头等舱/商务舱", "id": null, "my": "Kelas perniagaan dan Kelas pertama Thai Airways (TG)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG(domob)", "en": "Thai Airways (TG) flights from your country", "cn": "本国出发的泰航(TG)航班", "id": "Thai Airways (TG) dari Indonesia", "my": "Thai Airways (TG)", "th": "เที่ยวบินของ Thai Airways ที่เดินทางจากประเทศไทยสู่เส้นทางทั่วโลกที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TG(ob)", "en": "Thai Airways (TG) flights to oversea", "cn": "飞往境外的泰航(TG)航班", "id": "Thai Airways (TG) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TK", "en": "Turkish Airlines (TK) flights", "cn": "土耳其航空(TK)", "id": "Turkish Airlines (TK)", "my": "Turkish Airlines (TK)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TK(domob)", "en": "Turkish Airlines (TK) flights from your country", "cn": "本国出发的土耳其航空(TK)航班", "id": "Turkish Airlines (TK) dari Indonesia", "my": "Turkish Airlines (TK)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TK(Y)", "en": "Turkish Airlines (TK) Economy Class flights", "cn": null, "id": null, "my": "Kelas ekonomi dengan Turkish Airlines (TK)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TK(C)", "en": "Turkish Airlines (TK) Business Class flights", "cn": null, "id": null, "my": "Kelas perniagaan dengan Turkish Airlines (TK)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TR", "en": "Scoot (TR) flights", "cn": "酷航(TR)", "id": "Scoot (TR)", "my": "Scoot (TR)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TR+", "en": "Scoot (TR) flights to selected destinations: SG AU JP KR CN TW TH", "cn": "部分酷航(TR)航班", "id": "Scoot (TR) ke destinasi terpilih: SG AU JP KR CN TW TH", "my": "Scoot (TR) ke destinasi terpilih: SG AU JP KR CN TW TH", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TR(ob)", "en": "Scoot (TR) flights to oversea", "cn": "境内的酷航(TR)航班", "id": "Scoot (TR) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TR(domob)", "en": "Scoot (TR) flights from your country", "cn": "本国出发的酷航(TR)航班", "id": "Scoot (TR) dari Indonesia", "my": "Scoot (TR)", "th": "เที่ยวบินของ Scoot ที่เดินทางจากประเทศไทยสู่เส้นทางทั่วโลกที่ร่วมรายการทั้งหมดบน Trip.com ทั้งเที่ยวบินเที่ยวเดียวและไปกลับ", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TW", "en": "T'Way Air (TW) flights", "cn": "韩国德威航空(TW)", "id": "T'Way Air (TW)", "my": "T'Way Air (TW)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN", "en": "Vietnam Airlines (VN) flights", "cn": "越南航空(VN)", "id": "Vietnam Airlines (VN)", "my": "Vietnam Airlines (VN)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN(domob)", "en": "Vietnam Airlines (VN) flights from your country", "cn": "本国出发的越航(VN)航班", "id": "Vietnam Airlines (VN) dari Indonesia", "my": "Vietnam Airlines (VN)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN(ob)", "en": "Vietnam Airlines (VN) flights to oversea", "cn": "飞往境外的越航(VN)航班", "id": "Vietnam Airlines (VN) ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SEA", "en": "flights to SG MY ID TH PH VN", "cn": "飞往新马泰印菲越的航班", "id": null, "my": "penerbangan ke SG MY ID TH PH VN", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CN", "en": "flights to China mainland, Hong Kong, Taiwan, Macau", "cn": "飞往中国大陆和港澳台的航班", "id": "penerbangan ke Tiongkok Daratan, Hong Kong, Taiwan, Makau", "my": "penerbangan ke tanah besar China, Hong Kong, Taiwan, Macau", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CN2", "en": "flights to China mainland, Hong Kong, Taiwan, Macau with minimum 2 passengers per booking", "cn": "飞往中国大陆和港澳台的航班(最少2人出行)", "id": "penerbangan ke Tiongkok Daratan, Hong Kong, Taiwan, Makau dengan minimal 2 penumpang", "my": "penerbangan ke tanah besar China, Hong Kong, Taiwan, Macau dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China", "en": "flights to China mainland (excluding HKTWMO)", "cn": "飞往中国大陆(不含港澳台)的航班", "id": "penerbangan ke China (kecuali untuk HKTWMO)", "my": "penerbangan ke China (kecuali HKTWMO)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China2", "en": "flights to China mainland (excluding HKTWMO) with minimum 2 passengers per booking", "cn": "飞往中国大陆(不含港澳台)的航班(最少2人出行)", "id": "penerbangan ke China (kecuali untuk HKTWMO) dengan minimal 2 penumpang", "my": "penerbangan ke China (kecuali HKTWMO) dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China(ob6)", "en": "flights to China mainland (excluding HKTWMO) with minimum 6 passengers per booking", "cn": "飞往中国大陆(不含港澳台)的航班(最少6人出行)", "id": "penerbangan ke China (kecuali untuk HKTWMO) dengan minimal 6 penumpang", "my": "penerbangan ke China (kecuali HKTWMO) dengan minimum 6 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China(FC)", "en": "First Class and Business Class flights to China mainland (excluding HKTWMO)", "cn": "飞往中国(不含港澳台)的航班限商务舱/头等舱", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TPE+", "en": "flights to Taiwan", "cn": "飞往台湾的航班", "id": "penerbangan ke Taiwan", "my": "penerbangan ke Taiwan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TPE", "en": "flights to Taipei", "cn": "飞往台北的航班", "id": "penerbangan ke Taipei", "my": "penerbangan ke Taipei", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "HKG", "en": "flights to Hong Kong", "cn": "飞往香港的航班", "id": "penerbangan ke Hong Kong", "my": "penerbangan ke Hong Kong", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SHA", "en": "flights to Shanghai", "cn": "飞往上海的航班", "id": "penerbangan ke Shanghai", "my": "penerbangan ke Shanghai", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BJS", "en": "flights to Beijing", "cn": "飞往北京的航班", "id": "penerbangan ke Beijing", "my": "penerbangan ke Beijing", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "XMN", "en": "flights to Xiamen", "cn": "飞往厦门的航班", "id": "penerbangan ke Xiamen", "my": "penerbangan ke Xiamen", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "GBA", "en": "flights to Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau)", "cn": "飞往大湾区的航班", "id": "penerbangan ke Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau)", "my": "penerbangan ke Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Yunnan", "en": "flights to Yunnan", "cn": "飞往云南的航班", "id": "penerbangan ke Yunnan", "my": "penerbangan ke Yunnan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Chuanyu", "en": "flights to Chengdu & Chongqing", "cn": "飞往川渝的航班", "id": "penerbangan ke Chengdu & Chongqing", "my": "penerbangan ke Chengdu & Chongqing", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Jiangnan", "en": "flights to Shanghai & Hangzhou", "cn": "飞往江浙沪的航班", "id": "penerbangan ke Shanghai & Hangzhou", "my": "penerbangan ke Shanghai & Hangzhou", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Guangdong", "en": "flights to Guangdong", "cn": "飞往广东的航班", "id": "penerbangan ke Guangdong", "my": "penerbangan ke Guangdong", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Dongbei", "en": "flights to Heilongjiang, Liaoning and Jilin", "cn": "飞往东三省的航班", "id": "penerbangan ke Heilongjiang, Liaoning dan Jilin", "my": "penerbangan ke Heilongjiang, Liaoning dan Jilin", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SG", "en": "flights to Singapore", "cn": "飞往新加坡的航班", "id": "penerbangan ke Singapore", "my": "penerbangan ke Singapore", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MY", "en": "flights to Malaysia", "cn": "飞往马来西亚的航班", "id": "penerbangan ke Malaysia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MY+", "en": "AK, QZ, OD, MH, 8B, SQ, IU flights from Indonesia to Malaysia", "cn": "飞往马来西亚的部分航班", "id": "penerbangan ke Malaysia dengan AK, QZ, OD, MH, 8B, SQ, IU", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGMY", "en": "flights to Singapore & Malaysia", "cn": "飞往新加坡马来西亚的航班", "id": "penerbangan ke Singapore & Malaysia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGMYTH", "en": "flights to MY SG TH", "cn": null, "id": "penerbangan ke MY SG TH", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "non-SGMYTH", "en": "outbound flights to countries excluding SG MY TH", "cn": null, "id": "penerbangan keluar ke negara-negara selain SG MY TH", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KUL", "en": "flights to Kuala Lumpur", "cn": "飞往吉隆坡的航班", "id": "penerbangan ke Kuala Lumpur", "my": "penerbangan ke Kuala Lumpur", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BKI", "en": "flights to Kota Kinabalu", "cn": "飞往亚庇的航班", "id": "penerbangan ke Kota Kinabalu", "my": "penerbangan ke Kota Kinabalu", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH", "en": "flights to Thailand", "cn": "飞往泰国的航班", "id": "penerbangan ke Thailand", "my": "penerbangan ke Thailand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH2", "en": "flights to Thailand with minimum 2 passengers per booking", "cn": "飞往泰国的航班(最少2人出行)", "id": "penerbangan ke Thailand dengan minimal 2 penumpang", "my": "penerbangan ke Thailand dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "THVN3", "en": "flights to Thailand and Vietnam with minimum 3 passengers per booking", "cn": "飞往泰国越南的航班(最少3人出行)", "id": "penerbangan ke Thailand Vietnam dengan minimum 3 penumpang", "my": "penerbangan ke Thailand Vietnam dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BKK", "en": "flights to Bangkok", "cn": "飞往曼谷的航班", "id": "penerbangan ke Bangkok", "my": "penerbangan ke Bangkok", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "HKT", "en": "flights to Phuket", "cn": "飞往普吉岛的航班", "id": "penerbangan ke Phuket", "my": "penerbangan ke Phuket", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ID", "en": "flights to Indonesia", "cn": "飞往印度尼西亚的航班", "id": null, "my": "penerbangan ke Indonesia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ID3", "en": "flights to Indonesia with minimum 3 passengers per booking", "cn": "飞往印度尼西亚的航班(最少3人出行)", "id": null, "my": "penerbangan ke Indonesia dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "DPS", "en": "flights to Bali", "cn": "飞往巴厘岛的航班", "id": null, "my": "penerbangan ke Bali", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JKT", "en": "flights to Jakarta", "cn": "飞往雅加达的航班", "id": "penerbangan ke Jakarta", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JOG", "en": "flights to Yogyakarta", "cn": "飞往日惹的航班", "id": "penerbangan ke Yogyakarta", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "sub/mes", "en": "flights from Surabaya and Medan", "cn": null, "id": "penerbangan dari Surabaya dan Medan", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "sub/mes(ob)", "en": "flights from Surabaya and Medan to oversea", "cn": null, "id": "penerbangan dari Surabaya dan Medan ke Luar Negeri", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "LOP(dom)", "en": "domestic flights to and from Lombok", "cn": null, "id": "penerbangan domestik ke dan dari Lombok", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VNM", "en": "flights to Vietnam", "cn": "飞往越南的航班", "id": "penerbangan ke Vietnam", "my": "penerbangan ke Vietnam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN2", "en": "flights to Vietnam with minimum 2 passengers per booking", "cn": "飞往越南的航班 最少2人出行", "id": "penerbangan ke Vietnam dengan minimum 2 penumpang", "my": "penerbangan ke Vietnam dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGN", "en": "flights to Ho Chi Minh City", "cn": "飞往胡志明的航班", "id": "penerbangan ke Ho Chi Minh City", "my": "penerbangan ke Ho Chi Minh City", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "DAD", "en": "flights to Danang", "cn": "飞往岘港的航班", "id": "penerbangan ke Danang", "my": "penerbangan ke Danang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP", "en": "flights to Japan", "cn": "飞往日本的航班", "id": "penerbangan ke Jepang", "my": "penerbangan ke Jepun", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP2", "en": "flights to Japan with minimum 2 passengers per booking", "cn": "飞往日本的航班(最少2人出行)", "id": "penerbangan ke Jepang dengan minimum 2 penumpang", "my": "penerbangan ke Jepun dengan minimum 2 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP3", "en": "flights to Japan with minimum 3 passengers per booking", "cn": "飞往日本的航班(最少3人出行)", "id": "penerbangan ke Jepang dengan minimum 3 penumpang", "my": "penerbangan ke Jepun dengan minimum 3 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP4", "en": "flights to Japan with minimum 4 passengers per booking", "cn": "飞往日本的航班(最少4人出行)", "id": "penerbangan ke Jepang dengan minimum 4 penumpang", "my": "penerbangan ke Jepun dengan minimum 4 penumpang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TYO", "en": "flights to Tokyo", "cn": "飞往东京的航班", "id": "penerbangan ke Tokyo", "my": "penerbangan ke Tokyo", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "OSA", "en": "flights to Osaka", "cn": "飞往大阪的航班", "id": "penerbangan ke Osaka", "my": "penerbangan ke Osaka", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FUK", "en": "flights to Fukuoka", "cn": "飞往福冈的航班", "id": "penerbangan ke Fukuoka", "my": "penerbangan ke Fukuoka", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JPKR", "en": "flights to Japan and Korea", "cn": "飞往日韩的航班", "id": null, "my": "penerbangan ke Jepun & Korea", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KR", "en": "flights to Korea", "cn": "飞往韩国的航班", "id": "penerbangan ke Korea", "my": "penerbangan ke Korea", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SEL", "en": "flights to Seoul", "cn": "飞往首尔的航班", "id": "penerbangan ke Seoul", "my": "penerbangan ke Seoul", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AU", "en": "flights to Australia", "cn": "飞往澳大利亚的航班", "id": "penerbangan ke Australia", "my": "penerbangan ke Australia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SYD", "en": "flights to Sydney", "cn": "飞往悉尼的航班", "id": "penerbangan ke Sydney", "my": "penerbangan ke Sydney", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SYD(C)", "en": "Business Class flights to Sydney", "cn": "飞往悉尼的商务舱", "id": null, "my": "Kelas perniagaan ke Sydney", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MEL", "en": "flights to Melbourne", "cn": "飞往墨尔本的航班", "id": "penerbangan ke Melbourne", "my": "penerbangan ke Melbourne", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AUNZ", "en": "flights to Australia and New Zealand", "cn": "飞往澳新的航班", "id": "penerbangan ke Australia & New Zealand", "my": "penerbangan ke Australia & New Zealand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZF", "en": "flights to New Zealand", "cn": "飞往新西兰的航班", "id": "penerbangan ke New Zealand", "my": "penerbangan ke New Zealand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SA", "en": "flights to Saudi Arabia", "cn": "飞往沙特阿拉伯的航班", "id": "penerbangan ke Arab Saudi", "my": "penerbangan ke Arab Saudi", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "RUH", "en": "flights to Riyadh", "cn": "飞往利雅得的航班", "id": "penerbangan ke Riyadh", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JED/MED", "en": "flights to Jeddah and Medina", "cn": "飞往吉达/麦地那的航班", "id": "penerbangan ke Jeddah dan Medina", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "UK", "en": "flights to UK", "cn": "飞往英国的航班", "id": "penerbangan ke UK", "my": "penerbangan ke UK", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "LON", "en": "flights to London", "cn": "飞往伦敦的航班", "id": "penerbangan ke London", "my": "penerbangan ke London", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PAR", "en": "flights to Paris", "cn": "飞往巴黎的航班", "id": "penerbangan ke Paris", "my": "penerbangan ke Paris", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TUR", "en": "flights to Türkiye", "cn": "飞往土耳其的航班", "id": "penerbangan ke Türkiye", "my": "penerbangan ke Türkiye", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PH", "en": "flights to Philippines", "cn": "飞往菲律宾的航班", "id": "penerbangan ke Philippines", "my": "penerbangan ke Philippines", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "EU", "en": "flights to selected Europe destinations", "cn": "飞往参与活动的欧洲目的地", "id": null, "my": "penerbangan ke destinasi terpilih di Eropah", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "EU5", "en": "flights to U.K., France, Italy, Spain, Netherlands", "cn": "飞往英法西意荷5国的航班", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SG2Y", "en": "Economy Class flights from Singapore with minimum 2 passengers per booking", "cn": "新加坡出发经济舱(最少2人出行)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CNHKTWJPKR", "en": "flights to Japan, Korea, China mainland, Hong Kong, Taiwan", "cn": "飞往中国大陆港台日韩的航班", "id": "penerbangan ke Jepang, Korea, Tiongkok daratan, Hong Kong, Taiwan", "my": "penerbangan ke Jepun, Korea, tanah besar China, Hong Kong, Taiwan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "IDSGMY", "en": "flights to Indonesia, Singapore and Malaysia", "cn": null, "id": "penerbangan ke Indonesia, Singapura, Malaysia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}], "H": [{"sku": "all", "en": "all participating hotels on Trip.com, excluding room types that are provided by partners and Pay-at-Hotel orders", "cn": "所有参与活动的住宿房型", "id": "semua hotel yang berpartisipasi", "my": "semua hotel yang mengambil bahagian", "th": "โรงแรมที่ร่วมรายการทั้งหมดบน Trip.com รหัสโปรโมชั่นไม่สามารถใช้ร่วมกับประเภทห้องพักที่จัดหาโดยพาร์ทเนอร์และการจองแบบชำระเงินที่โรงแรม", "vn": "khách sạn được chọn trên Trip.com", "hk": "指定的預繳模式酒店及房型", "tw": "指定的預繳模式飯店及房型", "jp": "Trip.comで販売されている指定のホテルが対象です"}, {"sku": "dom", "en": "domestic hotels of your country", "cn": "国内住宿", "id": "hotel domestik Indonesia", "my": "hotel domestik Malaysia", "th": "ทุกโรงแรมในประเทศไทย ที่เข้าร่วมรายการบน Trip.com", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "dom45", "en": "4/5-star domestic hotels of your country", "cn": "四五星国内住宿", "id": "hotel bintang 4 dan 5 domestik Indonesia", "my": "hotel 4 dan 5 bintang domestik Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "dom2n", "en": "domestic hotels of your country with a minimum stay of 2 nights", "cn": "国内住宿(2晚连住)", "id": "hotel domestik Indonesia dengan minimal menginap 2 malam", "my": "hotel domestik Malaysia dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "intl", "en": "international hotels", "cn": "海外住宿", "id": "hotel internasional", "my": "hotel antarabangsa", "th": "ทุกโรงแรมในต่างประเทศ ที่เข้าร่วมรายการบน Trip.com", "vn": "Bay quốc tế", "hk": null, "tw": null, "jp": null}, {"sku": "selected", "en": "selected hotels/room types", "cn": "参与活动的部分酒店/房型", "id": "hotel/tipe kamar pilihan", "my": "jenis hotel/bilik terpilih", "th": "โรงแรม/ประเภทห้องพักที่เลือก", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected2", "en": "selected hotels/room types with a minimum stay of 2 nights", "cn": "参与活动的部分酒店/房型(2晚连住)", "id": "hotel/tipe kamar pilihan dengan minimal menginap 2 malam", "my": "jenis hotel/bilik terpilih dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "selected3", "en": "selected hotels/room types with a minimum stay of 3 nights", "cn": "参与活动的部分酒店/房型(3晚连住)", "id": "hotel/tipe kamar pilihan dengan minimal menginap 3 malam", "my": "jenis hotel/bilik terpilih dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "1-3N", "en": "hotels with a 1-3 nights stay", "cn": "1至3晚连住", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "2N", "en": "hotels with a minimum stay of 2 nights", "cn": "2晚连住", "id": "hotel dengan minimal menginap 2 malam", "my": "hotel dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "3N", "en": "hotels with a minimum stay of 3 nights", "cn": "3晚连住", "id": "hotel dengan minimal menginap 3 malam", "my": "hotel dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "4N", "en": "hotels with a minimum stay of 4 nights", "cn": "4晚连住", "id": "hotel dengan minimal menginap 4 malam", "my": "hotel dengan penginapan minimum 4 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "intl2", "en": "international hotels with a minimum stay of 2 nights", "cn": "海外住宿(2晚连住)", "id": null, "my": "hotel antarabangsa dengan penginapan minimum 2 malam", "th": "โรงแรมที่เข้าร่วมทั้งหมดนอกประเทศไทย (ต้องเข้าพักขั้นต่ำ 2 คืน)", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "intl3", "en": "international hotels with a minimum stay of 3 nights", "cn": "海外住宿(3晚连住)", "id": "hotel internasional dengan minimal menginap 3 malam", "my": "hotel antarabangsa dengan penginapan minimum 3 malam", "th": "โรงแรมที่เข้าร่วมทั้งหมดนอกประเทศไทย (ต้องเข้าพักขั้นต่ำ 3 คืน)", "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "45star", "en": "4/5-star hotels", "cn": "四五星住宿", "id": "hotel bintang 4 dan 5", "my": "hotel 4 dan 5 bintang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "5star", "en": "5-star hotels", "cn": "五星住宿", "id": "hotel bintang 5", "my": "hotel 5 bintang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "45star2", "en": "4/5-star hotels with a minimum stay of 2 nights", "cn": "四五星住宿(2晚连住)", "id": "hotel bintang 4 dan 5 dengan minimal menginap 2 malam", "my": "hotel 4 dan 5 bintang dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "45star3", "en": "4/5-star hotels with a minimum stay of 3 nights", "cn": "四五星住宿(3晚连住)", "id": "hotel bintang 4 dan 5 dengan minimal menginap 3 malam", "my": "hotel 4 dan 5 bintang dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "intl45star3", "en": "international 4/5-star hotels with a minimum stay of 3 nights", "cn": "海外四五星住宿(3晚连住)", "id": null, "my": "hotel antarabangsa 4 dan 5 bintang dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "APAC", "en": "CN TH JP KR ID MY AU hotels", "cn": "中泰日韩印马澳住宿", "id": "hotel di CN TH JP KR ID MY AU", "my": "hotel di CN TH JP KR ID MY AU", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SEA", "en": "SG MY TH ID PH VN hotels", "cn": "新马泰印菲越住宿", "id": "hotel di SG MY TH ID PH VN", "my": "hotel di SG MY TH ID PH VN", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SEA45star2", "en": "SG MY TH ID PH VN 4/5-star hotels with a minimum stay of 2 nights", "cn": "新马泰印菲越6国四五星住宿(2晚连住)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CN", "en": "China hotels (including HKMOTW)", "cn": "大中华区(含港澳台)住宿", "id": "hotel di China (termasuk HKTWMO)", "my": "hotel di China (termasuk HKTWMO)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "CN3", "en": "China hotels (including HKMOTW) with a minimum stay of 3 nights", "cn": "大中华区(含港澳台)住宿(3晚连住)", "id": "hotel di China (termasuk HKTWMO) dengan minimal menginap 3 malam", "my": "hotel di China (termasuk HKTWMO) dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China", "en": "China hotels (excluding HKMOTW)", "cn": "中国大陆(不含港澳台)住宿", "id": "hotel di China (kecuali HKTWMO)", "my": "hotel di China (kecuali HKTWMO)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China3", "en": "China hotels (excluding HKMOTW) with a minimum stay of 3 nights", "cn": "中国大陆(不含港澳台)住宿(3晚连住)", "id": "hotel di China (kecuali HKTWMO) dengan minimal menginap 3 malam", "my": "hotel di China (kecuali HKTWMO) dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ChinaSelect", "en": "UrCove by HYATT and Intercity Hotels in Shanghai, Guangzhou, Beijing & Shenzhen", "cn": "北上广深的逸扉酒店和城际酒店", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "HK", "en": "Hong Kong hotels", "cn": "香港住宿", "id": "hotel di Hong Kong", "my": "hotel di Hong Kong", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TW", "en": "Taiwan hotels", "cn": "台湾住宿", "id": "hotel di Taiwan", "my": "hotel di Taiwan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TW2", "en": "Taiwan hotels with a minimum stay of 2 nights", "cn": "台湾住宿(2晚连住)", "id": "hotel di Taiwan dengan minimal menginap 2 malam", "my": "hotel di Taiwan dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SHA", "en": "Shanghai hotels", "cn": "上海住宿", "id": "hotel di Shanghai", "my": "hotel di Shanghai", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BJS", "en": "Beijing hotels", "cn": "北京住宿", "id": "hotel di Beijing", "my": "hotel di Beijing", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "XMN", "en": "Xiamen and Quanzhou hotels", "cn": "厦门泉州住宿", "id": "hotel di Xiamen dan Quanzhou", "my": "hotel di Xiamen dan Quanzhou", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "GBA", "en": "Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau) hotels", "cn": "大湾区住宿", "id": "hotel di Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau)", "my": "hotel di Greater Bay Area (Guangzhou, Shenzhen, Zhuhai, Hong Kong, Macau)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Chuanyu", "en": "Chengdu & Chongqing hotels", "cn": "成渝住宿", "id": "hotel di Chengdu dan Chongqing", "my": "hotel di Chengdu dan Chongqing", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Yunnan", "en": "Yunnan hotels", "cn": "云南住宿", "id": "hotel di Yunnan", "my": "hotel di Yunnan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Jiangnan", "en": "Shanghai, Suzhou and Hangzhou hotels", "cn": "沪苏杭住宿", "id": "hotel di Shanghai, Suzhou dan Hangzhou", "my": "hotel di Shanghai, Suzhou dan Hangzhou", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Guangdong", "en": "Guangdong hotels", "cn": "广东住宿", "id": "hotel di Guangdong", "my": "hotel di Guangdong", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Dongbei", "en": "Heilongjiang, Liaoning and Jilin hotels", "cn": "东三省住宿", "id": "hotel di Heilongjiang, Liaoning and Jilin", "my": "hotel di Heilongjiang, Liaoning and Jilin", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SG", "en": "Singapore hotels", "cn": "新加坡住宿", "id": "hotel di Singapore", "my": "hotel di Singapore", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGMY", "en": "Singapore & Malaysia hotels", "cn": "新加坡马来西亚住宿", "id": "hotel di Singapore & Malaysia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGMY2", "en": "Singapore & Malaysia hotels with a minimum stay of 2 nights", "cn": "新加坡马来西亚住宿(2晚连住)", "id": "hotel di Singapore & Malaysia dengan minimal menginap 2 malam", "my": "hotel di Singapore & Malaysia dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MY", "en": "Malaysia hotels", "cn": "马来西亚住宿", "id": "hotel di Malaysia", "my": "hotel di Malaysia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "nonMY", "en": "Non-Malaysia hotels", "cn": "非马来西亚住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MY45star", "en": "Malaysia 4/5-star hotels", "cn": "马来西亚四五星住宿", "id": "hotel di Malaysia bintang 4 dan 5", "my": "hotel di Malaysia 4 dan 5 bintang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KUL", "en": "Kuala Lumpur hotels", "cn": "吉隆坡住宿", "id": "hotel di Kuala Lumpur", "my": "hotel di Kuala Lumpur", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JHB", "en": "Johor hotels", "cn": "新山住宿", "id": "hotel di Johor", "my": "hotel di Johor", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PEN", "en": "Penang hotels", "cn": "槟城住宿", "id": "hotel di Penang", "my": "hotel di Penang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PEN2", "en": "Penang hotels with a minimum stay of 2 nights", "cn": "槟城住宿(2晚连住)", "id": null, "my": "hotel di Penang dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "IPH", "en": "Ipoh hotels", "cn": "怡宝住宿", "id": "hotel di Ipoh", "my": "hotel di Ipoh", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BKI", "en": "Kota Kinabalu hotels", "cn": "亚庇住宿", "id": "hotel di Kota Kinabalu", "my": "hotel di Kota Kinabalu", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Port Dickson", "en": "Port Dickson hotels", "cn": "波德申住宿", "id": null, "my": "hotel di Port Dickson", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH", "en": "Thailand hotels", "cn": "泰国住宿", "id": "hotel di Thailand", "my": "hotel di Thailand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH+", "en": "Selected Thailand hotels", "cn": "部分泰国住宿", "id": "hotel Thailand tertentu", "my": "hotel di Thailand terpilih", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH3", "en": "Thailand hotels with a minimum stay of 3 nights", "cn": "泰国住宿(3晚连住)", "id": "hotel di Thailand dengan minimal menginap 3 malam", "my": "hotel di Thailand dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH45star", "en": "Thailand 4/5-star hotels", "cn": "泰国四五星住宿", "id": "hotel di Thailand bintang 4 dan 5", "my": "hotel di Thailand 4 dan 5 bintang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BKK", "en": "Bangkok hotels", "cn": "曼谷住宿", "id": "hotel di Bangkok", "my": "hotel di Bangkok", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "HKT", "en": "Phuket hotels", "cn": "普吉岛住宿", "id": "hotel di Phuket", "my": "hotel di Phuket", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ID", "en": "Indonesia hotels", "cn": "印度尼西亚住宿", "id": "hotel di Indonesia", "my": "hotel di Indonesia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ID+", "en": "Jakarta, Bali, Bandung City, Surabaya, Semarang hotels", "cn": "部分印尼住宿", "id": "hotel di Jakarta, Bali, Bandung City, Surabaya, Semarang", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "ID45star", "en": "Indonesia 4/5-star hotels", "cn": "印尼四五星住宿", "id": "hotel di Indonesia bintang 4 dan 5", "my": "hotel di Indonesia 4 dan 5 bintang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "pcity", "en": "Special for Jakarta, Bandung, Bali and other hotels", "cn": null, "id": "untuk Jakarta, Bandung, Bali dan hotel lainnya", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "pcity2", "en": "Special for Jakarta, Bandung, Bali and other hotels with a minimum stay of 2 nights", "cn": null, "id": "untuk Jakarta, Bandung, Bali dan hotel lainnya dengan minimal menginap 2 malam", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "pcity3", "en": "Special for Jakarta, Bandung, Bali and other hotels with a minimum stay of 3 nights", "cn": null, "id": "untuk Jakarta, Bandung, Bali dan hotel lainnya dengan minimal menginap 3 malam", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "dps3", "en": "Bali hotels with a minimum stay of 3 nights", "cn": null, "id": "hotel di Bali dengan minimal menginap 3 malam", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "DPS", "en": "Bali hotels", "cn": "巴厘岛住宿", "id": "hotel di Bali", "my": "hotel di Bali", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JKT", "en": "Jakarta hotels", "cn": "雅加达住宿", "id": "hotel di Jakarta", "my": "hotel di Jakarta", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JOG", "en": "Yogyakarta hotels", "cn": "日惹住宿", "id": "hotel di Yogyakarta", "my": "hotel di Yogyakarta", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "LOP", "en": "Lombok hotels", "cn": "龙目岛住宿", "id": "hotel di Lombok", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP", "en": "Japan hotels", "cn": "日本住宿", "id": "hotel di Japan", "my": "hotel di Japan", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP2", "en": "Japan hotels with a minimum stay of 2 nights", "cn": "日本住宿(2晚连住)", "id": "hotel di Japan dengan minimal menginap 2 malam", "my": "hotel di Japan dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP3", "en": "Japan hotels with a minimum stay of 3 nights", "cn": "日本住宿(3晚连住)", "id": "hotel di Japan dengan minimal menginap 3 malam", "my": "hotel di Japan dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TYO", "en": "Tokyo hotels", "cn": "东京住宿", "id": "hotel di Tokyo", "my": "hotel di Tokyo", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "OSA", "en": "Osaka hotels", "cn": "大阪住宿", "id": "hotel di Osaka", "my": "hotel di Osaka", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FUK", "en": "Fukuoka hotels", "cn": "福冈住宿", "id": "hotel di Fukuoka", "my": "hotel di Fukuoka", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KR", "en": "Korea hotels", "cn": "韩国住宿", "id": "hotel di Korea", "my": "hotel di Korea", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KR3", "en": "Korea hotels with a minimum stay of 3 nights", "cn": "韩国住宿(3晚连住)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JPKR", "en": "Japan and Korea hotels", "cn": "日韩住宿", "id": "hotel di Japan & Korea", "my": "hotel di Japan & Korea", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SEL", "en": "Seoul hotels", "cn": "首尔住宿", "id": "hotel di Seoul", "my": "hotel di Seoul", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN", "en": "Vietnam hotels", "cn": "越南住宿", "id": "hotel di Vietnam", "my": "hotel di Vietnam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN2", "en": "Vietnam hotels with a minimum stay of 2 nights", "cn": "越南住宿(2晚连住)", "id": "hotel di Vietnam dengan minimal menginap 2 malam", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SGN", "en": "Ho Chi Minh City hotels", "cn": "胡志明住宿", "id": "hotel di Ho Chi Minh City", "my": "hotel di Ho Chi Minh City", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "DAD", "en": "Danang hotels", "cn": "岘港住宿", "id": "hotel di Danang", "my": "hotel di Danang", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AU", "en": "Australia hotels", "cn": "澳大利亚住宿", "id": "hotel di Australia", "my": "hotel di Australia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AU3", "en": "Australia hotels with a minimum stay of 3 nights", "cn": "澳大利亚住宿(3晚连住)", "id": "hotel di Australia dengan minimal menginap 3 malam", "my": "hotel di Australia dengan penginapan minimum 3 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SYD", "en": "Sydney hotels", "cn": "悉尼住宿", "id": "hotel di Sydney", "my": "hotel di Sydney", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "MEL", "en": "Melbourne hotels", "cn": "墨尔本住宿", "id": "hotel di Melbourne", "my": "hotel di Melbourne", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AUNZ", "en": "Australia and New Zealand hotels", "cn": "澳新住宿", "id": "hotel di Australia & New Zealand", "my": "hotel di Australia & New Zealand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AUNZ45star3", "en": "AUNZ 4/5-star hotels with a minimum stay of 3 nights", "cn": "澳新四五星住宿(3晚连住)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "NZ", "en": "New Zealand hotels", "cn": "新西兰住宿", "id": "hotel di New Zealand", "my": "hotel di New Zealand", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SA", "en": "Saudi Arabia hotels", "cn": "沙特阿拉伯住宿", "id": "hotel di Arab Saudi", "my": "hotel di Arab Saudi", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "RUH", "en": "Riyadh hotels", "cn": "利雅得住宿", "id": "hotel di Riyadh", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "non-RUH", "en": "Saudi Arabia hotels excluding Riyadh", "cn": "非利雅得住宿", "id": "hotel di Arab Saudi kecuali Riyadh", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "UK", "en": "United Kingdom hotels", "cn": "英国住宿", "id": "hotel di United Kingdom", "my": "hotel di United Kingdom", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "LON", "en": "London hotels", "cn": "伦敦住宿", "id": "hotel di London", "my": "hotel di London", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PAR", "en": "Paris hotels", "cn": "巴黎住宿", "id": "hotel di Paris", "my": "hotel di Paris", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "IN", "en": "India hotels", "cn": "印度住宿", "id": "hotel di India", "my": "hotel di India", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TUR", "en": "Türkiye hotels", "cn": "土耳其住宿", "id": "hotel di Türkiye", "my": "hotel di Türkiye", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "PH", "en": "Philippines hotels", "cn": "菲律宾住宿", "id": "hotel di Philippines", "my": "hotel di Philippines", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "EU5", "en": "U.K., France, Italy, Spain, Netherlands hotels", "cn": "英法西意荷5国住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Family5", "en": "selected 5-star family hotels", "cn": "部分五星亲子住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Capella", "en": "Capella Hotel", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Fragrance", "en": "Fragrance Group hotels (Balestier, Classic, Kovan, Lavender, Oasis, Ocean View, Rose, Viva)", "cn": "飞龙集团旗下住宿(马里士他/ 优雅/ 高文/ 劳明达/ 绿洲/ 海景/ 玫瑰/ 威宝)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "GPCH", "en": "Grand Park City Hall Singapore", "cn": "新加坡君乐皇府住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "StaycaTRIP", "en": "Jakarta, West Java, Bali, Yogyakarta hotels (Valid for check-in from Thu to Sun)", "cn": null, "id": "hotel di Jakarta, Jawa Barat, Bali, Yogyakarta (Berlaku untuk check-in dari Kamis hingga Minggu)", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FleurPalais", "en": "Fleur De Chine Hotel and Palais de Chine Hotel", "cn": "云品温泉住宿日月潭和台北君品住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "IONMAJ", "en": "Ion Majestic hotels (Grand Ion Delemen Hotel, Wyndham Ion Majestic - Bentong, 1001 Nights Hotel, Trademark Collection by Wyndham, Theme Boutique Genting Highlands - 1001 Nights, Grand Ion Delemen Plus, Grand Ion Delemen Premier, Highland Breeze Hotel)", "cn": "玖霄明轩住宿群 (至尊玖霄明阁大酒店, 文冬温德姆玖霄明轩云海酒店, 云顶高原1001夜精品酒店, 至尊玖霄明阁优选大酒店, 至尊玖霄明阁尊贵大酒店, 高原微风酒店)", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JPKRCNHKTW", "en": "JP KR CN HK TW hotels", "cn": "日韩中港台住宿", "id": null, "my": "hotel di JP KR CN HK TW", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Foliage", "en": "China mainland, Taiwan, Japan, Korea, Hanoi hotels", "cn": "中国大陆,台湾,日,韩,河内的住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Centara", "en": "Centara Grand hotel Bangkok", "cn": "曼谷盛泰澜酒店", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "RWG", "en": "Resort World Genting Hotels", "cn": "云顶世界酒店(康乐福 / 高原 / 第一大酒店 / 云顶天城 / 阿娃娜 / 琪佳 / 浮罗交怡 / 云豪 / RW酒店)", "id": null, "my": "hotel di Resort World Genting (Crockfords, Highlands, First World, SkyWorlds, Awana, Kijal, Langkawi, Genting Grand, RW)", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "RWG2", "en": "Resort World Genting Hotels with a minimum stay of 2 nights", "cn": "云顶世界酒店集团旗下酒店(2晚连住)", "id": null, "my": "hotel di Resort World Genting (Crockfords, Highlands, First World, SkyWorlds, Awana, Kijal, Langkawi, Genting Grand, RW) dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Kempinski", "en": "The Capitol Kempinski Hotel Singapore", "cn": "新加坡首都凱賓斯基酒店", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "FEH", "en": "Far East Hospitality hotel group", "cn": "远东酒店集团旗下酒店", "id": "Grup hotel Far East Hospitality", "my": "Kumpulan hotel Far East Hospitality", "th": "กลุ่มโรงแรมฟาร์อีสต์ฮอสปิทัลลิตี้", "vn": "Tập đoàn khách sạn Far East Hospitality", "hk": null, "tw": null, "jp": null}, {"sku": "IDSGMY", "en": "Indonesia, Singapore & Malaysia hotels", "cn": null, "id": "hotel di Indonesia, Singapura & Malaysia", "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Grand Hyatt", "en": "Grand Hyatt Beijing at Oriental Plaza", "cn": "北京東方君悦大酒店", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Sunway", "en": "Sunway hotel group", "cn": "双威酒店集团旗下酒店", "id": null, "my": "Kumpulan hotel Sunway", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Sunway2", "en": "Sunway hotel group with a minimum stay of 2 nights", "cn": "双威酒店集团旗下酒店(2晚连住)", "id": null, "my": "Kumpulan hotel Sunway dengan penginapan minimum 2 malam", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Santika", "en": "Santika Indonesia Hotels & Resorts", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Capri", "en": "Capri by Fraser Johor Bahru", "cn": "新山凯贝丽酒店式服务公寓", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AscottID", "en": "Selected Ascott hotels in Indonesia", "cn": "参与活动的印尼雅诗阁酒店", "id": "Hotel-hotel Ascott pilihan di Indonesia", "my": "Hotel-hotel Ascott terpilih di Indonesia", "th": null, "vn": null, "hk": null, "tw": null, "jp": null}], "P": [{"sku": "all", "en": "all participating products", "cn": "所有参与活动的产品", "id": "semua produk yang berpartisipasi", "my": "semua produk yang mengambil bahagian", "th": "สินค้าที่ร่วมรายการทั้งหมด", "vn": "sản phẩm được chọn trên Trip.com", "hk": "指定的產品", "tw": "指定的產品", "jp": null}, {"sku": "selected", "en": "selected products", "cn": "部分指定产品", "id": "produk pilihan", "my": "produk terpilih", "th": "สินค้าที่เลือก", "vn": "sản phẩm được chọn", "hk": "部分指定产品", "tw": "部分指定产品", "jp": null}, {"sku": "CN", "en": "China products only", "cn": "大中华区(含港澳台)产品", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "China", "en": "Mainland China products (excluding Hong Kong and Taiwan) only", "cn": "中国大陆(不含港澳台)产品", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TPE+", "en": "Taiwan products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "HKMO", "en": "Hong Kong & Macau products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "JP", "en": "Japan products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "KR", "en": "Korea products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "TH", "en": "Thailand products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "VN", "en": "Vietnam products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "AU", "en": "Australia products only", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Milksha", "en": "Milksha SGD5 Cash Voucher", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "Icecream", "en": "Häagen-Dazs™ Ice Cream Voucher", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "cw10off", "en": "Christmas Wonderland products: Christmas Train, Bumper Cars, Flying Dumbo, Carousel, Meteorite, Mini Ferris Wheel, Mini Pirate Ship, Bugs Ride", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "noDCL", "en": "all except Disney Cruise Line products", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "DCL", "en": "Disney Cruise Line products", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "tour", "en": "all participating group and private tours", "cn": null, "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "SQ", "en": "Singapore Airlines (SQ) flights with hotel bundle products", "cn": "新航机票+酒店产品", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "allcruise", "en": "All cruises except Disney Cruise", "cn": "除迪士尼邮轮外的所有邮轮产品", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "stardream", "en": "Star Cruises & Dream Cruises", "cn": "丽星邮轮 & 星梦邮轮", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "bkkat", "en": "Bangkok Airport Transfer (departure or arrival)", "cn": "曼谷接送机", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}, {"sku": "BKI", "en": "flights to Kota Kinabalu and Kota Kinabalu hotels", "cn": "飞往亚庇的航班和亚庇住宿", "id": null, "my": null, "th": null, "vn": null, "hk": null, "tw": null, "jp": null}]};
+
+/* ================= ENGINE ================= */
+// 优惠券条款自动生成引擎 —— 严格按 Sheet1 公式逐条翻译
+// 依赖外部注入的 DATA = {currency, months, times, payments, prodtypes, F, H, P}
+
+function buildEngine(DATA) {
+  const CURR = {}; DATA.currency.forEach(r => CURR[r.ccy] = r);
+  const MONTHS = {}; DATA.months.forEach(r => MONTHS[r.num] = r);
+  const TIMES = {}; DATA.times.forEach(r => { if (r.en) TIMES[String(r.en).toLowerCase()] = r; });
+  const PAY = {}; DATA.payments.forEach(r => PAY[String(r.code).toLowerCase()] = r);
+  const PRODTYPE = {}; DATA.prodtypes.forEach(r => PRODTYPE[r.code] = r);
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function pad3(n) { return String(n).padStart(3, '0'); }
+
+  function dateParts(d) {
+    return { y: d.getFullYear(), m: d.getMonth() + 1, day: d.getDate() };
+  }
+  function ymdDash(d) { const p = dateParts(d); return `${p.y}-${pad2(p.m)}-${pad2(p.day)}`; }
+  function ymdCN(d) { const p = dateParts(d); return `${p.y}年${pad2(p.m)}月${pad2(p.day)}日`; }
+  function ymdKR(d) { const p = dateParts(d); return `${p.y}년${pad2(p.m)}월${pad2(p.day)}일`; }
+  function ddmmyyyy(d) { const p = dateParts(d); return `${pad2(p.day)}/${pad2(p.m)}/${p.y}`; }
+
+  function monthName(d, lang) {
+    const p = dateParts(d);
+    const row = MONTHS[p.m];
+    if (!row) return '';
+    return row[lang];
+  }
+
+  // "D Month YYYY" style, month name from given lang column (en/id/my/th)
+  function dMonthY(d, lang, yearOffset) {
+    const p = dateParts(d);
+    const mn = monthName(d, lang);
+    const y = p.y + (yearOffset || 0);
+    return `${p.day} ${mn} ${y}`;
+  }
+
+  // ---- number formatting helpers ----
+  // raw-amount grouping (no pre-division), separator configurable. Used for EN/ID sentence-level IDR amounts.
+  function groupRaw(n, sep) {
+    const r = Math.round(n);
+    if (r < 1000) return String(r);
+    if (r < 1e6) return Math.floor(r / 1000) + sep + pad3(r % 1000);
+    return Math.floor(r / 1e6) + sep + pad3(Math.floor((r % 1e6) / 1000)) + sep + pad3(r % 1000);
+  }
+  // pre-divided-by-1000 grouping (assumes amount is a multiple of 1000), used for VND everywhere
+  // and for EN/local "mechanism" short-form IDR display.
+  function groupPreDivided(n, sep) {
+    const k = Math.round(n / 1000);
+    if (k < 1000) return k + sep + '000';
+    if (k >= 10000) return Math.round(n / 1e6) + sep + '000' + sep + '000';
+    const s = String(k);
+    return s[0] + sep + s.slice(1, 4) + sep + '000';
+  }
+
+  function pctInt(x) { return Math.trunc(x * 100); }
+  // Chinese "折" tier display: e.g. 0.25 -> "75折"; 0.3 -> "7折"
+  function zheDisplay(x) {
+    const p = pctInt(x);
+    const lastDigit = String(p).slice(-1);
+    if (lastDigit === '0') return String((100 - p) / 10);
+    return String(100 - p);
+  }
+
+  // ---- lookups ----
+  function currencySymbol(ccy) { const r = CURR[ccy]; return r ? r.symbol : ccy; }
+  function countryName(ccy) { const r = CURR[ccy]; return r ? r.country : ''; }
+  function prodDescEN(h) { const r = PRODTYPE[h]; return r ? r.en : ''; }
+  function prodDescZH(h) { const r = PRODTYPE[h]; return r ? r.zh : ''; }
+
+  function timeNormEN(tag) {
+    if (!tag) return '';
+    const row = TIMES[String(tag).toLowerCase()];
+    return row ? row.en : '';
+  }
+  function timeNormZH(tag) {
+    if (!tag) return '';
+    const row = TIMES[String(tag).toLowerCase()];
+    return row ? row.zh : '';
+  }
+
+  function payLookup(code) {
+    if (!code) return null;
+    return PAY[String(code).toLowerCase()] || null;
+  }
+
+  const SKU_TABLE = { F: DATA.F, H: DATA.H, P: DATA.P };
+  function skuRow(product, skuCode) {
+    const table = SKU_TABLE[product] || DATA.P;
+    return table.find(r => String(r.sku).toLowerCase() === String(skuCode).toLowerCase());
+  }
+
+  // =========================================================
+  // Main generation
+  // =========================================================
+  function generate(inp) {
+    const G = inp.curr;           // currency code e.g. SGD
+    const H = inp.product;        // F / H / X
+    const I = inp.start;          // Date
+    const J = inp.end;            // Date
+    const M = inp.type;           // Public / Private
+    const P = inp.sku;            // sku code, '' or 'all' etc.
+    const Q = inp.usage;          // number
+    const R = inp.payment || '';  // payment code
+    const S = inp.device || '';   // 'all' or ''
+    const T = inp.newUserOnly ? 'T' : ''; // New
+    const U = inp.traveldate || null;     // Date or null
+    const V = inp.discountAmt;    // Discount$
+    const W = inp.minSpend;       // Minspend$
+    const X = inp.discountPct;    // Discount% (fraction) or null
+    const Y = inp.cap;            // Cap$
+    const L = inp.tag || '';      // time-of-day tag
+
+    const sym = currencySymbol(G);
+    const country = countryName(G);
+    const prodH = (H === 'F') ? 'flights' : (H === 'H' ? 'hotels' : 'products');
+    const prodZH = prodDescZH(H);
+    const prodEN = prodDescEN(H);
+
+    const hasPct = (X !== null && X !== undefined && X !== '');
+    const hasMin = (W !== null && W !== undefined && W !== '');
+
+    // ---------------- date / time building blocks ----------------
+    const startEN = dMonthY(I, 'en');
+    const endEN = dMonthY(J, 'en');
+    const timeEN = timeNormEN(L);
+    const timeZH = timeNormZH(L);
+
+    function startAllFor(ccy) {
+      if (ccy === 'SGD' || ccy === 'HKD' || ccy === 'TWD' || ccy === 'JPY') return ymdCN(I);
+      if (ccy === 'MYR') return dMonthY(I, 'my');
+      if (ccy === 'IDR') return dMonthY(I, 'id');
+      if (ccy === 'THB') return dMonthY(I, 'th', 543);
+      if (ccy === 'VND') return ddmmyyyy(I);
+      if (ccy === 'KRW') return ymdKR(I);
+      return ymdDash(I);
+    }
+    function endAllFor(ccy) {
+      if (ccy === 'SGD' || ccy === 'HKD' || ccy === 'TWD' || ccy === 'JPY') return ymdCN(J);
+      if (ccy === 'MYR') return dMonthY(J, 'my');
+      if (ccy === 'IDR') return dMonthY(J, 'id');
+      if (ccy === 'THB') return dMonthY(J, 'th', 543);
+      if (ccy === 'VND') return ddmmyyyy(J);
+      if (ccy === 'KRW') return ymdKR(J);
+      return ymdDash(J);
+    }
+    const startall = startAllFor(G);
+    const endall = endAllFor(G);
+    const startzhmy = (G === 'MYR') ? ymdCN(I) : '';
+    const endzhmy = (G === 'MYR') ? ymdCN(J) : '';
+
+    // td (travel date deadline) building blocks
+    function tdEN() {
+      if (!U) return '';
+      const prefix = (H === 'H') ? ' (check out before ' : ' (travel period till ';
+      return prefix + dMonthY(U, 'en') + ')';
+    }
+    function tdAllFor(ccy) {
+      if (!U) return '';
+      if (ccy === 'SGD') return (H === 'H' ? ' (退房日期至: ' : ' (旅行日期至: ') + ymdCN(U) + ')';
+      if (ccy === 'MYR') return (H === 'H' ? ' (tarikh check out sebelum ' : ' (tarikh penerbangan sebelum ') + dMonthY(U, 'my') + ')';
+      if (ccy === 'IDR') return (H === 'H' ? ' (check out sebelum ' : ' (tanggal keberangkatan sebelum ') + dMonthY(U, 'id') + ')';
+      if (ccy === 'THB') return (H === 'H' ? ' ระยะเวลาเข้าพัก: จนถึง ' : ' ระยะเวลาเดินทาง: จนถึง ') + dMonthY(U, 'th', 543);
+      if (ccy === 'VND') return (H === 'H' ? ' (Thời gian lưu trú: ' : ' (Thời gian bay: đến hết ') + ddmmyyyy(U) + ')';
+      if (ccy === 'HKD') return (H === 'H' ? '（住宿入住日期至：' : '（旅遊日期至：') + ymdCN(U) + '）';
+      if (ccy === 'TWD') return (H === 'H' ? '（住宿入住日期至：' : '（旅遊日期至：') + ymdCN(U) + ' 23:59 GMT+8）';
+      if (ccy === 'JPY') return '（クーポン適用の旅行期間' + ymdCN(U) + ' 23:59 まで）';
+      return '';
+    }
+    const tdEN_ = tdEN();
+    const tdall = tdAllFor(G);
+    const tdzhmy = (G === 'MYR' && U) ? ((H === 'H' ? ' (退房日期至: ' : ' (旅行日期至: ') + ymdCN(U) + ')') : '';
+
+    // pay building blocks
+    const payRow = payLookup(R);
+    const payEN = R ? (payRow ? payRow.en : '') : '';
+    function payAllFor(ccy) {
+      if (!R) return '';
+      if (!payRow) return '';
+      const col = { SGD: 'zh', MYR: 'my', HKD: 'hk', TWD: 'tw', THB: 'th', VND: 'vn', JPY: 'jp', KRW: 'kr', IDR: 'id' }[ccy];
+      const v = col ? payRow[col] : null;
+      return (v === null || v === undefined || v === '') ? payEN : v;
+    }
+    const payall = payAllFor(G);
+    const payzhmy = (G === 'MYR') ? ((payRow && payRow.zh) ? payRow.zh : payEN) : '';
+
+    // playidname
+    const playidname = `${M} ${H} ${pad2(I.getMonth() + 1)}-${pad2(I.getDate())} ${L}`;
+
+    // ---------------- sku building blocks ----------------
+    function skuLookup(product, langCol, fallbackCol) {
+      const row = skuRow(product, P);
+      if (!row) return null;
+      let v = row[langCol];
+      if (v === null || v === undefined || v === '') v = row[fallbackCol];
+      return v;
+    }
+    const skuEN = (() => {
+      const row = skuRow(H === 'X' ? 'P' : H, P);
+      let v = row ? row.en : P;
+      if (v === undefined) v = P;
+      if (v && v.indexOf('your country') !== -1) v = v.replace(/your country/g, country);
+      return v || '';
+    })();
+    const skuColMap = { SGD: 'cn', IDR: 'id', MYR: 'my', THB: 'th', VND: 'vn', HKD: 'hk', TWD: 'tw', JPY: 'jp' };
+    function skuAllRaw() {
+      const prod = (H === 'X') ? 'P' : H;
+      const row = skuRow(prod, P);
+      const col = skuColMap[G];
+      let v = row ? (col ? row[col] : null) : null;
+      if (v === null || v === undefined || v === '') v = row ? row.en : skuEN;
+      if (v === undefined || v === null) v = skuEN;
+      return v || '';
+    }
+    const skuAllRawVal = skuAllRaw();
+    const skuall = String(skuAllRawVal).replace(/本国/g, '新加坡');
+    // skuzhmy 专门走 F/H/P 表的 "cn"(中文) 列，服务马来西亚华人读者；fallback 到 en 列
+    function skuZhmyRaw() {
+      const prod = (H === 'X') ? 'P' : H;
+      const row = skuRow(prod, P);
+      let v = row ? row.cn : null;
+      if (v === null || v === undefined || v === '') v = row ? row.en : skuEN;
+      if (v === undefined || v === null) v = skuEN;
+      return v || '';
+    }
+    const skuzhmy = (G === 'MYR') ? String(skuZhmyRaw()).replace(/本国/g, '马来西亚') : '';
+
+    // ---------------- mechanism (机制) ----------------
+    function fmtAmtEN(n) { return (G === 'IDR') ? groupRaw(n, ',') : n; }
+    function mechEN() {
+      if (!hasPct) {
+        if (!hasMin) return `${prodEN} bookings ${sym}${fmtAmtEN(V)} OFF`;
+        return `${sym}${fmtAmtEN(V)} OFF (min. spend ${sym}${fmtAmtEN(W)})`;
+      } else {
+        if (!hasMin) return `${pctInt(X)}% OFF (Up to ${sym}${fmtAmtEN(Y)})`;
+        return `Up to ${sym}${fmtAmtEN(Y)} OFF (min. spend ${sym}${fmtAmtEN(W)})`;
+      }
+    }
+    function mechAll() {
+      if (G === 'SGD') {
+        if (!hasPct) {
+          if (!hasMin) return `${prodZH}立减S$${V}`;
+          return `满S$${W}减S$${V}`;
+        }
+        return (!hasMin ? `${zheDisplay(X)}折优惠 折扣高达S$${Y}` : `${zheDisplay(X)}折优惠 折扣高达S$${Y} 最低消费S$${W}`);
+      }
+      if (G === 'MYR') {
+        if (!hasPct) return `Diskaun RM${V} (perbelanjaan minimum RM${W})`;
+        if (!hasMin) return `Diskaun ${pctInt(X)}% (hingga RM${Y})`;
+        return `Diskaun hingga RM${Y} (perbelanjaan minimum RM${W})`;
+      }
+      if (G === 'IDR') {
+        if (!hasPct) return `Diskon Rp${groupRaw(V, '.')} (min. transaksi Rp${groupRaw(W, '.')})`;
+        if (!hasMin) return `Diskon ${pctInt(X)}% (s.d Rp${groupRaw(Y, '.')})`;
+        return `Diskon s.d Rp${groupRaw(Y, '.')} (min. transaksi Rp${groupRaw(W, '.')})`;
+      }
+      if (G === 'THB') {
+        const label = (H === 'F') ? 'ส่วนลดเที่ยวบิน' : (H === 'H' ? 'ส่วนลดโรงแรม' : 'ส่วนลด');
+        if (!hasPct) return `${label} ฿${V} (ขั้นต่ำ ฿${W})`;
+        if (!hasMin) return `${label} ${pctInt(X)}% (สูงสุด ฿${Y})`;
+        return `${label} ฿${Y} (ขั้นต่ำ ฿${W})`;
+      }
+      if (G === 'VND') {
+        if (!hasPct) return `Giảm ${groupPreDivided(V, '.')} VND đặt tối thiểu ${groupPreDivided(W, '.')} VND`;
+        if (!hasMin) return `Giảm ${pctInt(X)}% tối đa ${Y}`;
+        return `Giảm tối đa ${groupPreDivided(Y, '.')} đặt tối thiểu ${groupPreDivided(W, '.')} VND`;
+      }
+      if (G === 'HKD' || G === 'TWD') {
+        const sign = (G === 'HKD') ? 'HK$' : 'NT$';
+        const label = (H === 'F') ? '機票' : (H === 'H' ? '住宿' : '');
+        if (!hasPct) return `${label}減 ${sign}${V} (最低消費 ${sign}${W})`;
+        if (!hasMin) return `${label}${zheDisplay(X)}折 (折扣高達 ${sign}${Y})`;
+        return `${label}折扣高達 ${sign}${Y} (最低消費 ${sign}${W})`;
+      }
+      if (G === 'JPY') {
+        const label = (H === 'F') ? '航空券' : (H === 'H' ? 'ホテル' : '');
+        if (!hasPct) return `${label}${V}円オフ (最低利用料金：${W}円)`;
+        if (!hasMin) return `${label}${pctInt(X)}%オフ (最大${Y}円オフ)`;
+        return `${label}${Y}円オフ (最低利用料金：${W}円)`;
+      }
+      if (G === 'KRW') {
+        if (!hasPct) return `${V}원 할인 (최소 결제 금액 : ${W}원)`;
+        if (!hasMin) return `${pctInt(X)}% 할인 (최대 ${Y}원 할인)`;
+        return `${Y}원 할인 (최소 결제 금액 : ${W}원)`;
+      }
+      // fallback: 限制EN placeholder (DN2 fallback in original points to 限制EN which is unusual; keep EN mech as fallback)
+      return mechEN();
+    }
+
+    // ---------------- restriction (限制) ----------------
+    function limitEN() {
+      let out = '';
+      if (payEN) out += payEN + ' ';
+      if (T) out += 'new user only ';
+      if (skuEN && P !== 'all') out += skuEN + ' ';
+      return out.trim() + (out ? ' ' : '');
+    }
+    function limitAllFor(ccy) {
+      if (ccy === 'SGD') {
+        let out = '';
+        if (payall) out += payall + ' ';
+        if (T) out += '限新用户 ';
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'MYR') {
+        let out = '';
+        if (T) out += 'pengguna baru sahaja ';
+        if (payall) out += payall + ' ';
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'IDR') {
+        let out = '';
+        if (T) out += 'hanya pengguna baru ';
+        if (payall) out += payall + ' ';
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'THB') {
+        let out = '';
+        if (payEN) out += `ชำระด้วยบัตร ${payall} `;
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'VND') {
+        let out = '';
+        if (payall) out += `và chỉ áp dụng cho ${payall} `;
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'HKD' || ccy === 'TWD') {
+        let out = '';
+        if (payall) out += `限${payall} `;
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'JPY') {
+        let out = '';
+        if (payall) out += `${payall}会員様限定 `;
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      if (ccy === 'KRW') {
+        let out = '';
+        if (payall) out += payall + ' ';
+        if (skuall && P !== 'all') out += skuall + ' ';
+        return out;
+      }
+      return limitEN();
+    }
+    const limitzhmy = (G === 'MYR') ? (() => {
+      let out = '';
+      if (payzhmy) out += payzhmy + ' ';
+      if (T) out += '限新用户 ';
+      if (skuzhmy && P !== 'all') out += skuzhmy + ' ';
+      return out;
+    })() : '';
+
+    const limitEN_ = limitEN();
+    const limitAll_ = limitAllFor(G);
+
+    // ---------------- name ----------------
+    const mechENv = mechEN();
+    const mechAllv = mechAll();
+    const nameEN = mechENv + (limitEN_.trim() ? ' ' + limitEN_.trim() + ' ' : '');
+    const nameALL = mechAllv + (limitAll_.trim() ? ' ' + limitAll_.trim() + ' ' : '');
+    const nameZHMY = (G === 'MYR') ? (() => {
+      let disc;
+      if (!hasPct) {
+        disc = !hasMin ? `立减RM${V}` : `满RM${W}减RM${V}`;
+      } else {
+        disc = !hasMin ? `${zheDisplay(X)}折优惠 折扣高达RM${Y}` : `${zheDisplay(X)}折优惠 折扣高达RM${Y} 最低消费RM${W}`;
+      }
+      return disc + (limitzhmy.trim() ? ' ' + limitzhmy.trim() : '');
+    })() : '';
+
+    // ---------------- T1-T6 per language ----------------
+    const dayCount = Math.round((J - I) / 86400000);
+    const sameDay = dayCount === 0;
+    const under90 = dayCount < 90;
+
+    function periodClauseEN() {
+      if (sameDay) return `1. Promotion period: available on ${endEN}${timeEN ? `, release at ${timeEN}` : ''}`;
+      if (under90) return `1. Promotion period: available from ${startEN}${timeEN ? `, ${timeEN}` : ''} till end of ${endEN}`;
+      return `1. Promotion period: available till end of ${endEN}`;
+    }
+    const T1 = periodClauseEN() + tdEN_ + (M === 'Private'
+      ? '. Promo code has to be claimed on first-come, first-served basis. Upon successfully claim, the promo code will be valid for redemption within the promotion period.'
+      : '. Redemptions are first-come-first-served upon payment, while stocks last. Users have to successfully complete the booking to use the code.');
+
+    const T2 = `2. Promotion platform: Trip.com ${S === 'all'
+      ? (G === 'USD' ? '' : country + ' ') + 'website, app and mobile site.'
+      : (G === 'USD' ? '' : country + '-issued '.replace('-issued ', ' ')) + 'app only. Web browser bookings are not applicable.'}`.replace('website, app and mobile site.', (S === 'all' ? 'website, app and mobile site.' : ''));
+
+    function T2fixed() {
+      const countryPrefix = (G === 'USD') ? '' : country + ' ';
+      if (S === 'all') return `2. Promotion platform: Trip.com ${countryPrefix}website, app and mobile site.`;
+      return `2. Promotion platform: Trip.com ${countryPrefix}app only. Web browser bookings are not applicable.`;
+    }
+
+    function amountOFFclauseEN() {
+      const minTxt = (G === 'IDR') ? groupRaw(W, ',') : W;
+      const vTxt = (G === 'IDR') ? groupRaw(V, ',') : V;
+      const yTxt = (G === 'IDR') ? groupRaw(Y, ',') : Y;
+      const payIssued = payEN ? ` with ${(G === 'USD') ? '' : country + '-issued '}${payEN}` : '';
+      if (!hasPct) {
+        const tailNoMin = (H === 'H') ? '. The promo code discount applies only to the room price and does not cover taxes, service charges, or other surcharges.'
+          : (H === 'F') ? '. The promo code cannot be applied if the flight ticket fare (inclusive of taxes but does not include miscellaneous expenses such as additional baggage fees or insurance) is lower than the promo code amount.'
+          : '.';
+        const roomTail = (H === 'H') ? ' (room price after existing platform discounts)' : (H === 'F') ? ' (ticket fare inclusive of taxes but does not include miscellaneous expenses such as additional baggage fees or insurance)' : '';
+        if (!hasMin) {
+          return `3. ${prodEN} bookings paid in ${G}${payIssued} enjoy ${sym}${vTxt} OFF the purchase amount per booking${tailNoMin}`;
+        }
+        return `3. ${prodEN} bookings paid in ${G}${payIssued} enjoy ${sym}${vTxt} OFF the purchase amount per booking${roomTail}, min. spend at ${sym}${minTxt}.`;
+      } else {
+        const roomTail = (H === 'H') ? ' (room price after existing platform discounts)' : (H === 'F') ? ' (ticket fare inclusive of taxes but does not include miscellaneous expenses such as additional baggage fees or insurance)' : '';
+        if (!hasMin) {
+          return `3. ${prodEN} bookings paid in ${G}${payIssued} enjoy ${pctInt(X)}% OFF the purchase amount per booking${roomTail}, capped at ${sym}${yTxt}.`;
+        }
+        const capTail = (H === 'F') ? '. The promo code cannot be applied if the purchase amount after discount is lower than the min. spend.' : '.';
+        return `3. ${prodEN} bookings paid in ${G}${payIssued} enjoy ${pctInt(X)}% OFF the purchase amount per booking${roomTail}, capped at ${sym}${yTxt}, min. spend at ${sym}${minTxt}${capTail}`;
+      }
+    }
+    const T3 = amountOFFclauseEN();
+
+    function T4For(skuTextEN, skuTextLocal, prodWord) {
+      if (!P) return '';
+      return `4. Offer applies to ${skuTextEN}. *Please note that promo codes can only be applied to eligible ${prodWord}. To check if the promo code is applicable, enter promo code on the checkout page before final payment to verify.`;
+    }
+    const T4 = T4For(skuEN, skuall, prodH);
+
+    const T5 = (T ? '5. The promo code is only eligible for New Sign Ups who have not made any bookings on Trip.com website or app. ' : '5. ')
+      + 'Users must sign up for a Trip.com account to be able to use the promo code. '
+      + (M === 'Private' ? 'Please ensure that the account you are logging into trip.com is the same one that has claimed this promo code so as to successfully use it. ' : '')
+      + `The promo code can only be ${M === 'Private' ? 'claimed ' : 'redeemed '}${Q}-time per account during the promo period${Q === 1 ? ' (accounts with the same device or payment card numbers are regarded as the same user).' : '.'}`
+      + (M === 'Private' ? ' Once the promo code is added to the account, it cannot be transferred.' : '');
+
+    const T6 = `6. Cannot be used in conjunction with any other promo codes or third-party cashback app. If channel mismatching, please close all apps and re-open Trip.com APP via this link 'https://${G ? '' : ''}${(country ? '' : '')}` // placeholder replaced below
+      ;
+    function T6fixed() {
+      const siteCode = String(G).slice(0, 2).toLowerCase();
+      return `6. Cannot be used in conjunction with any other promo codes or third-party cashback app. If channel mismatching, please close all apps and re-open Trip.com APP via this link 'https://${siteCode}.trip.com/w/home' to apply the promo code.`;
+    }
+    const T6_ = T6fixed();
+
+    const T7_EN = (M === 'Private')
+      ? '7. In the event of a booking cancellation or modification, users must reapply the code to new bookings, subject to validity. Trip.com reserves all rights of final interpretation.'
+      : "7. In the event of a booking cancellation or modification, the promo code will be reinstated and made available for public redemption. Users must reapply the code to new bookings, subject to availability and validity. Trip.com reserves all rights of final interpretation.";
+
+    const termsEN = [T1, T2fixed(), T3, T4, T5, T6_, T7_EN].join('<br>');
+
+    // ---- CN (SGD or MYR) ----
+    function buildCN() {
+      if (!(G === 'SGD' || G === 'MYR')) return null;
+      // CN 文案在 MYR 市场下使用专门为"马来西亚中文读者"准备的 zhmy 系列字段
+      // (startzhmy/endzhmy/tdzhmy/payzhmy/skuzhmy)，而不是 all 系列（all 在 MYR 下是马来语）
+      const startLocal = (G === 'SGD') ? startall : startzhmy;
+      const endLocal = (G === 'SGD') ? endall : endzhmy;
+      const tdLocal = (G === 'SGD') ? tdall : tdzhmy;
+      const payLocal = (G === 'SGD') ? payall : payzhmy;
+      const skuLocal = (G === 'SGD') ? skuall : skuzhmy;
+      const t1 = (() => {
+        let s;
+        if (sameDay) s = `1. 优惠码有效期: ${endLocal}${timeZH}至23:59`;
+        else if (under90) s = `1. 优惠码有效期: ${startLocal}${timeZH}至${endLocal}23:59`;
+        else s = `1. 优惠码有效期至${endLocal}23:59`;
+        s += tdLocal;
+        s += (M === 'Private' ? '. 优惠名额有限, 领完即止. 成功领取优惠码后请于有效期内下单使用, 过期无效.' : '. 优惠名额有限, 用完即止, 以成功提交订单并完成付款为准.');
+        return s;
+      })();
+      const t2 = `2. 优惠码适用平台: Trip.com ${G === 'SGD' ? (S === 'all' ? '新加坡站(中文版)电脑/手机网页或 App' : '新加坡站(中文版)手机 App') : (S === 'all' ? '马来西亚站(中文版)电脑/手机网页或 App' : '马来西亚站(中文版)手机 App')}`;
+      const marketName = (G === 'SGD') ? '新加坡' : '马来西亚';
+      const t3 = (() => {
+        const sign = (G === 'SGD') ? 'S$' : 'RM';
+        const openPart = `3. 优惠码仅适用于${G}支付的${prodZH}订单. ` + (R === '' ? '每笔订单' : `${marketName}发行的${payLocal}每笔订单`) + '享受';
+        let discPart;
+        if (!hasPct) {
+          if (!hasMin) {
+            discPart = `立减${sign}${V}优惠` + ((H === 'H') ? '. 优惠码折扣仅适用于客房价格, 不包含税费.' : (H === 'F') ? '. 如果机票价格(含税, 但不含额外行李费或保险等杂项费用)低于优惠码金额, 则无法使用优惠码.' : '.');
+          } else {
+            discPart = `消费满${sign}${W}立减${sign}${V}优惠` + ((H === 'H') ? ', 抵扣基准为平台折扣后房费.' : (H === 'F') ? ', 抵扣基准为机票价格+税费, 但不包括额外行李费或保险等杂项费用.' : '.');
+          }
+        } else {
+          discPart = `${zheDisplay(X)}折优惠, 折扣上限${sign}${Y}`;
+          if (!hasMin) {
+            discPart += (H === 'H') ? ', 抵扣基准为平台折扣后房费.' : (H === 'F') ? ', 抵扣基准包括税费但不包括额外行李费或保险等杂项费用.' : '.';
+          } else {
+            discPart += `, 最低消费${sign}${W}` + ((H === 'H') ? ', 抵扣基准为平台折扣后房费.' : (H === 'F') ? ', 抵扣基准为机票价格+税费, 但不包括额外行李费或保险等杂项费用.' : '.');
+          }
+        }
+        return openPart + discPart;
+      })();
+      const t4 = P ? `4. 优惠码适用于${skuLocal}. *请注意优惠码仅适用于符合条件的${H === 'F' ? '航班' : H === 'H' ? '住宿房型' : '产品'}, 用户必须在付款前的结算页面输入优惠码以验证其适用性.` : '';
+      const t5 = (T ? '5. 优惠码仅限新用户使用. ' : '5. ') + '用户必须注册并登录 Trip.com 账户方可使用. '
+        + `优惠码有效期内每位用户 (相同用户名称/电话号码或设备号/支付卡号均视为同一用户) 限${M === 'Private' ? '领取及使用优惠码 ' : '使用优惠码 '}${Q} 次.`
+        + (M === 'Private' ? ' 优惠码添加到账户后即无法转让.' : '');
+      const t6 = `6. 当用户通过第三方渠道 (包括但不限于外部连结/广告页面/合作伙伴网站或App) 造访 Trip.com 网站及 App 时, 本优惠码折扣可能不适用. 出现不能使用的情况, 可尝试通过访问以下链接进行预订: https://${G === 'MYR' ? 'my' : 'sg'}.trip.com/w/home.`;
+      const t7 = `7. 如用户于相关政策容许下更改或取消此优惠订单, 用户可能会因为优惠码有效期已过${M === 'Public' ? '或优惠名额已用完' : ''}而不能使用此优惠, 为此我们亦不会因应用户的相关行为而作出任何形式的补偿. Trip.com保留最终解释权.`;
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- MY (Malay, MYR only) ----
+    function buildMY() {
+      if (G !== 'MYR') return null;
+      const t1 = (sameDay ? `1. Tempoh promosi: sahaja pada ` : `1. Tempoh promosi: tersedia dari ${startall}${timeEN ? ', ' + timeEN : ''} hingga akhir `) + endall + tdall
+        + ', atau selagi stok masih ada.' + (M === 'Private' ? ' Penebusan (setelah tempahan berjaya) adalah mengikut kaedah siapa cepat dia dapat. Setelah berjaya dituntut, kod promosi akan ditambah dalam akaun pelanggan yang sah untuk ditebus dalam tempoh promosi.' : ' Penebusan (setelah tempahan berjaya) adalah mengikut kaedah siapa cepat dia dapat.');
+      const t2 = `2. Platform promosi: ${S === 'all' ? 'Laman web, aplikasi dan laman mudah alih Trip.com Malaysia.' : 'aplikasi Trip.com Malaysia sahaja.'}`;
+      const t3 = (() => {
+        const open = R === '' ? '3. Pelanggan menikmati ' : `3. ${payall} yang dikeluarkan di Malaysia menikmati `;
+        let body;
+        if (!hasPct) {
+          const roomTail = (H === 'H') ? ', kadar bilik sahaja)' : (H === 'F') ? ', termasuk cukai tetapi tanpa yuran lain)' : ')';
+          body = `Diskaun RM${V}` + (!hasMin
+            ? ((H === 'H') ? '. Diskaun kod promosi hanya terpakai pada harga bilik dan tidak meliputi cukai, caj perkhidmatan atau surcaj lain.' : (H === 'F') ? '. Kod promosi tidak boleh digunakan jika tambang tiket penerbangan (termasuk cukai tetapi tanpa yuran lain) adalah lebih rendah daripada jumlah kod promosi.' : '.')
+            : ` (perbelanjaan minimum RM${W}${roomTail}`) + ' setiap pesanan.';
+        } else {
+          const roomTail = (H === 'H') ? ', kadar bilik sahaja)' : (H === 'F') ? ', termasuk cukai tetapi tanpa yuran lain)' : ')';
+          if (!hasMin) {
+            body = `${pctInt(X)}% diskaun (maksimum RM${Y}${roomTail} setiap pesanan.`;
+          } else {
+            body = `${pctInt(X)}% diskaun (maksimum RM${Y}, perbelanjaan minimum RM${W}${roomTail} setiap pesanan. Kod promosi tidak boleh digunakan jika jumlah pembelian selepas diskaun adalah lebih rendah daripada perbelanjaan minimum.`;
+          }
+        }
+        return open + body;
+      })();
+      const t4 = P ? `4. Tawaran ini terpakai kepada ${skuall}. Sila ambil perhatian bahawa kod promo hanya boleh digunakan pada produk terpilih. Untuk memeriksa sama ada kod promo boleh digunakan, masukkan kod promo pada halaman pembayaran sebelum pembayaran akhir untuk membuat pengesahan.` : '';
+      const t5 = (T ? '5. Kod promo ini hanya untuk Pengguna Baharu yang belum pernah membuat tempahan di laman web atau aplikasi Trip.com. ' : '5. ') + 'Pengguna perlu mendaftar akaun Trip.com untuk menggunakan kod promo. '
+        + (Q === 1 ? 'Kod promo ini hanya boleh digunakan satu kali sahaja untuk setiap pengguna semasa tempoh promosi (akaun dengan peranti yang sama atau nombor kad pembayaran dianggap sebagai pengguna yang sama).' : `Kod promo ini hanya boleh digunakan ${Q} kali sahaja untuk setiap pengguna semasa tempoh promosi.`);
+      const t6 = `6. Tidak boleh digunakan bersama aplikasi pulangan tunai (cashback) pihak ketiga. Untuk menggunakan kod promosi, sila tutup semua permohonan dan buka semula aplikasi Trip.com melalui pautan ini - https://my.trip.com/w/home`;
+      const t7 = '7. Trip.com memegang hak untuk tafsiran muktamad.';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- ID (Indonesian, IDR only) ----
+    function buildID() {
+      if (G !== 'IDR') return null;
+      const t1 = (sameDay ? '1. Periode promosi: hanya berlaku tanggal ' : `1. Periode promosi: tersedia mulai ${startall}${timeEN ? ', ' + timeEN : ''} hingga `) + endall + tdall
+        + ', atau sampai stok habis.' + (M === 'Private' ? " Penukaran (untuk pemesanan yang berhasil) dilakukan dengan sistem 'siapa cepat dia dapat. Kode promo yang berhasil diklaim akan dikirimkan ke akun pelanggan dan bebas digunakan kapan saja selama periode promosi." : " Penukaran (untuk pemesanan yang berhasil) dilakukan dengan sistem 'siapa cepat dia dapat.");
+      const t2 = `2. Platform promosi: ${S === 'all' ? 'Situs web, aplikasi, dan situs mobile Trip.com Indonesia.' : 'Aplikasi Trip.com (versi Indonesia saja).'}`;
+      const t3 = (() => {
+        const open = R === '' ? '3. Pengguna mendapatkan ' : `3. ${payall} yang diterbitkan di Indonesia mendapatkan `;
+        let body;
+        if (!hasPct) {
+          const tailNoMin = (H === 'H') ? '. Diskon kode promo hanya berlaku untuk harga kamar dan tidak mencakup pajak, biaya layanan, atau biaya tambahan lainnya.' : (H === 'F') ? '. Kode promo tidak dapat diterapkan jika harga tiket pesawat (setelah diskon termasuk pajak tapi tanpa biaya lainnya) lebih rendah dari jumlah kode promo.' : '.';
+          const roomTail = (H === 'H') ? ', hanya harga kamar setelah diskon)' : (H === 'F') ? ', setelah diskon termasuk pajak tapi tanpa biaya lainnya)' : ')';
+          body = `diskon Rp${groupRaw(V, '.')}` + (!hasMin ? tailNoMin : ` (minimum transaksi Rp${groupRaw(W, '.')}${roomTail} per pemesanan.`);
+        } else {
+          const roomTail = (H === 'H') ? ', hanya harga kamar setelah diskon)' : (H === 'F') ? ', setelah diskon termasuk pajak tapi tanpa biaya lainnya)' : ')';
+          if (!hasMin) {
+            body = `diskon ${pctInt(X)}% (maksimal Rp${groupRaw(Y, '.')}${roomTail} per pemesanan.`;
+          } else {
+            body = `diskon ${pctInt(X)}% (maksimal Rp${groupRaw(Y, '.')} dengan minimal transaksi Rp${groupRaw(W, '.')}${roomTail} per pemesanan. Nilai diskon dapat dikurangi untuk memenuhi pengeluaran minimum.`;
+          }
+        }
+        return open + body;
+      })();
+      const t4 = P ? `4. Promosi berlaku untuk ${skuall}. Harap dicatat bahwa kode promo hanya dapat diterapkan pada produk tertentu. Untuk memeriksa apakah kode promo berlaku, masukkan kode promo di halaman pemesanan sebelum pembayaran akhir.` : '';
+      const t5 = (T ? '5. Kode promo hanya dapat digunakan oleh pengguna yang belum memesan menggunakan aplikasi Trip.com. ' : '5. ') + 'Pengguna harus login ke akun Trip.com untuk memakai kode promo. '
+        + (Q === 1 ? 'Tiap pengguna hanya dapat menggunakan kode promo ini 1 kali selama periode promosi (akun yang perangkat atau nomor kartu pembayaran yang sama dianggap berasal dari pengguna yang sama).' : `Tiap akun dapat menggunakan kode promo maksimal ${Q} kali selama periode promosi.`);
+      const t6 = `6. Tidak dapat digunakan bersama aplikasi cashback pihak ketiga. Untuk memakai kode promo, silakan tutup semua aplikasi dan buka ulang aplikasi Trip.com melalui tautan ini - https://id.trip.com/w/home`;
+      const t7 = '7. Trip.com berhak atas interpretasi akhir atas promosi ini.';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- TH (Thai, THB only) ----
+    function buildTH() {
+      if (G !== 'THB') return null;
+      const t1 = `1. ระยะเวลาโปรโมชั่น: ใช้ได้ถึงวันที่ ${endall}${M === 'Public' ? ', หรือจนกว่าสิทธิ์จะหมด การใช้รหัสโปรโมชั่นอยู่บนพื้นฐานใช้ก่อนมีสิทธิ์ก่อน (เมื่อทำการจองสำเร็จ)' : ''}${tdall}`;
+      const t2 = `2. แพล็ตฟอร์มที่ใช้โปรโมชั่นได้: Trip.com ${S === 'all' ? 'ประเทศไทย เท่านั้น' : 'แอปพลิเคชันบนมือถือ ที่เป็นเวอร์ชั่นประเทศไทย'}`;
+      const t3 = (() => {
+        const open = '3. รหัสโปรโมชั่นใช้ได้กับการจองที่มีการชำระเงินเป็นสกุลเงินบาทเท่านั้น ' + (R === '' ? '' : `รหัสโปรโมชั่นนี้ใช้ได้สำหรับการชำระชำระด้วยบัตรธนาคาร ${payall} `) + 'ผู้ใช้จะได้รับส่วนลด ';
+        let body;
+        if (!hasPct) {
+          const tailNoMin = (H === 'H') ? ' ส่วนลดจากรหัสโปรโมชั่นใช้ได้เฉพาะกับราคาห้องพักเท่านั้น ไม่รวมภาษี ค่าบริการ หรือค่าธรรมเนียมอื่นๆ' : (H === 'F') ? ' ไม่สามารถใช้รหัสโปรโมชั่นได้หากราคาตั๋วเครื่องบิน (รวมภาษีแล้ว แต่ไม่รวมค่าใช้จ่ายเบ็ดเตล็ด เช่น ค่าสัมภาระเพิ่มเติม หรือค่าประกันภัย) ต่ำกว่าจำนวนเงินที่ใช้ส่วนลดจากรหัสโปรโมชั่น' : '.';
+          body = `${V} บาท` + (!hasMin ? tailNoMin : ` เมื่อทำการจองขั้นต่ำ ${W} บาท ต่อ 1 การจอง`);
+        } else {
+          const calcTail = (H === 'H') ? ' คำนวณจากราคาหลังรวมภาษีและค่าบริการ' : (H === 'F') ? ' ส่วนลดจะคำนวณจากราคารวมภาษี แต่ไม่รวมค่าใช้จ่ายเบ็ดเตล็ด เช่น ค่าสัมภาระเพิ่มเติมหรือค่าประกันภัย' : '';
+          body = `${pctInt(X)}% ลดสูงสุด ${Y} บาท ต่อ 1 การจอง${calcTail}`;
+        }
+        return open + body;
+      })();
+      const t4 = P ? `4. รหัสโปรโมชั่นนี้สามารถใช้กับ${skuall} หากต้องการตรวจสอบว่าใช้รหัสโปรโมชั่นได้หรือไม่ โปรดป้อนรหัสโปรโมชั่นในหน้าชำระเงินก่อนการชำระเงินเพื่อตรวจสอบ` : '';
+      const t5 = `5. ผู้ใช้ต้องเข้าระบบในฐานะสมาชิก Trip.com บัญชีจึงจะสามารถใช้รหัสโปรโมชั่นได้ รหัสโปรโมชั่นสามารถรับ/แลกได้ ${Q} ครั้งต่อบัญชีในช่วงระยะเวลาโปรโมชั่น`;
+      const t6 = '6. รหัสโปรโมชั่นนี้ไม่สามารถใช้ร่วมกับแอป/เว็บไซต์เงินคืนของพันธมิตรได้';
+      const t7 = '7. การพิจารณาสุดท้ายขึ้นกับ Trip.com และถือเป็นที่สิ้นสุด';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- VN (Vietnamese, VND only) ----
+    function buildVN() {
+      if (G !== 'VND') return null;
+      const t1 = `1. Mã giảm giá có hiệu lực: 0 giờ, ${startall} - 23h59, ${endall}. Số lượng ưu đãi có hạn, chương trình có thể kết thúc trước thời hạn khi hết mã mà không cần thông báo trước.`;
+      const t2 = `2. Nền tảng áp dụng mã: ${S === 'all' ? 'Trang web Trip.com, trang web và ứng dụng dành cho thiết bị di động.' : 'Ứng dụng Trip.com (phải thiết lập địa phương là Việt Nam).'}`;
+      const t3 = (() => {
+        const open = '3. Mã khuyến mãi chỉ có thể được áp dụng trên trang Tiếng Việt, đặt chỗ thanh toán bằng VNĐ. ' + (R === '' ? 'Thành viên Trip.com ' : `Thẻ ${payall} phát hành tại Việt Nam `) + 'sẽ được giảm thêm ';
+        let body;
+        const roomTail = (H === 'H') ? ' VND (chỉ giá phòng).' : (H === 'F') ? ' VND (giá đã bao gồm thuế).' : '';
+        if (!hasPct) {
+          body = `${groupPreDivided(V, '.')} VNĐ cho mỗi lần đặt có mức chi tiêu tối thiểu là ${groupPreDivided(W, '.')}${roomTail}`;
+        } else {
+          if (!hasMin) {
+            body = `${pctInt(X)}% tối đa ${groupPreDivided(Y, '.')} VND.`;
+          } else {
+            body = `${pctInt(X)}% tối đa ${groupPreDivided(Y, '.')} VND; cho mỗi lần đặt có mức chi tiêu tối thiểu là ${groupPreDivided(W, '.')}${roomTail}`;
+          }
+        }
+        return open + body;
+      })();
+      const t4 = P ? `4. Ưu đãi này áp dụng cho các ${skuall}. Để kiểm tra xem mã khuyến mãi có thể áp dụng hay không, vui lòng nhập mã trên trang thanh toán trước khi bạn thực hiện bước thanh toán cuối cùng.` : '';
+      const t5 = '5. Mã ưu đãi chỉ áp dụng cho tài khoản đã đăng ký thành viên với Trip.com. Trong thời gian diễn ra chương trình, người dùng phải đăng nhập với tư cách thành viên Trip.com để nhận mã từ trang chương trình khuyến mãi, đặt chỗ sau đó chọn mã khuyến mãi tại trang thanh toán để được giảm giá. '
+        + `Mỗi người dùng chỉ có thể sử dụng mã ${Q === 1 ? 'một' : Q} lần (1 thành viên/1 lượt đặt chỗ/1 thiết bị).`;
+      const t6 = '6. Mã khuyến mãi không được sử dụng đồng thời với ưu đãi nào khác. Mã khuyến mãi không có giá trị quy đổi hoặc hoàn lại thành tiền mặt hoặc Xu (Trip Coins). Mã khuyến mãi không áp dụng khi đặt vé trên nền tảng Shopback, AZGO.';
+      const t7 = "7. Trường hợp đặt chỗ bị hủy, mã khuyến mại được sử dụng cho lần đặt chỗ đó sẽ tự động được hoàn lại vào tài khoản của bạn và có sẵn để sử dụng trong thời gian khuyến mại đã phát hành (tùy thuộc vào tình trạng sẵn có). Trip.com bảo lưu mọi quyền giải thích cuối cùng về chương trình khuyến mãi này.";
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- HK (Traditional Chinese - Hong Kong, HKD only) ----
+    // HK/TW/JP/KR 四个语言的条款模板里，原表从未支持过"百分比折扣"写法(X字段)，
+    // 现实数据里这四个币种也从未出现过百分比促销。此处做兼容：用封顶金额(Y)顶替折扣金额位，
+    // 并在 snippets.pctCaveat 里标记，供界面提示人工核对第3条措辞。
+    const pctCaveat = hasPct && ['HKD', 'TWD', 'JPY', 'KRW'].includes(G);
+    const V_fallback = hasPct ? Y : V;
+    const W_fallback = hasMin ? W : '';
+
+    function buildHK() {
+      if (G !== 'HKD') return null;
+      const t1 = `i. 活動推廣期至 ${endall} 23:59 (GMT+8). 優惠期內共設名額 ${inp.initialQty || ''} 個, 優惠名額有限, 先用先得, 用完即止, 以成功完成付款並提交訂單為準.`;
+      const t2 = `ii. 適用平台: Trip.com ${S === 'all' ? '香港地區繁體中文及英文之桌面, 手機版網站及手機 App(版本7.5或以上)' : '香港地區繁體中文及英文之手機 App(版本7.5或以上)'}`;
+      const t3 = (() => {
+        const open = `iii. 使用規則: 此優惠僅適用${payEN ? `持有香港地區發行的${payall}信用卡及扣賬卡的` : ''}Trip.com 會員. 合資格訂單單筆消費滿 HK$${W_fallback} 可享有 HK$${V_fallback} 即時折扣優惠`;
+        const tail = (H === 'F') ? '(計算基準不含稅費).' : (H === 'H') ? '(計算基準為房間價格).' : '';
+        return open + tail;
+      })();
+      const t4 = P ? `iv. 優惠碼適用於${skuall}. *請注意優惠碼僅適用於符合資格的${H === 'F' ? '航班' : H === 'H' ? '住宿及房型' : '產品'}, 用戶必須在付款前的結算頁面輸入優惠碼以驗證其適用性.` : '';
+      const t5 = `v. 每張訂單只可使用一個優惠代碼, 每位會員於推廣期內最多只可使用每個優惠代碼 ${Q} 次.`;
+      const t6 = 'vi. 優惠代碼不可兌換為現金. 不可與第三方返利App同時使用. 如果您的訂單發生取消或更改, 該訂單所享之優惠將被作廢, 客戶須重新預訂方可再次使用優惠碼. 客戶於再次預訂時會可能因當時優惠碼之使用額度已用完而未能使用相關之優惠.';
+      const t7 = payEN
+        ? `vii. 如客戶未能於付款時輸入合資格之 ${payall} 卡致未能享用優惠, ${payall}及商戶概不負責.<br>v. Trip.com 及 ${payall} 保留最終之闡釋權.`
+        : 'vii. Trip.com 保留最終之闡釋權.';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- TW (Traditional Chinese - Taiwan, TWD only) ----
+    function buildTW() {
+      if (G !== 'TWD') return null;
+      const t1 = `i. 使用日期: 優惠代碼有效期至${endall}晚上23:59. 優惠期內共設名額 ${inp.initialQty || ''} 組, 優惠名額有限, 先用先得, 用完即止, 以成功完成付款並提交訂單為準.`;
+      const t2 = `ii. 活動平台: Trip.com ${S === 'all' ? '繁體中文-台灣地區站點.' : '手機App 繁體中文-台灣地區站點.'}`;
+      const t3 = (() => {
+        const open = `iii. 機制: ${payEN ? `持有台灣地區發行的${payall}的` : ''}Trip.com 用户須於活動期間透過活動平台登入為會員, 於訂單填寫頁輸入指定優惠代碼並以新台幣結帳, 單筆消費滿 NT$${W_fallback}可折抵 NT$${V_fallback}`;
+        const tail = (H === 'F') ? '(計算基準含稅費但不包括附加費).' : (H === 'H') ? '(計算基準為房間價格).' : '';
+        return open + tail;
+      })();
+      const t4 = P ? `iv. 優惠適用於${skuall}. *請注意優惠碼僅適用於符合資格的${H === 'F' ? '航班' : H === 'H' ? '住宿及房型' : '產品'}, 依結帳頁面展示為準.` : '';
+      const t5 = `v. 每位符合資格的用戶於活動推廣日期内最多可享用優惠 ${Q} 次.`;
+      const t6 = 'vi. 優惠不可與其他折扣/優惠代碼/推廣優惠或現金券同時使用, 優惠不適用於第三方推廣渠道. 優惠名額採先結帳先贏, 用完即止. 如用戶在付款時該期的優惠名額已經用完, 則用戶在該期未能獲得優惠. 另外, 如用戶於相關政策容許下欲更改或取消此優惠訂單, 用戶可能會因為優惠碼限期已過而不能使用此優惠, 為此我們亦不會因應用戶的相關行為而作出任何形式的補償.';
+      const t7 = payEN
+        ? `vii. ${payall} 及 Trip.com保留隨時修改或取消此優惠以其條款和細則的權利, 包括在用戶未遵守活動條款及細則的情況下取消其參與資格. 恕不另行通知. ${payall} 及 Trip.com 保留最終之闡釋權.`
+        : 'vii. Trip.com保留隨時修改或取消此優惠以其條款和細則的權利, 包括在用戶未遵守活動條款及細則的情況下取消其參與資格. 恕不另行通知. Trip.com 保留最終之闡釋權.';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- JP (Japanese, JPY only) ----
+    function buildJP() {
+      if (G !== 'JPY') return null;
+      const t1 = `1.キャンペーン有効期間: ${endall}23:59 (日本時間) まで (期間内でも、在庫がなくなり次第終了)${tdall}`;
+      const t2 = `2.キャンペーン対象: Trip.com${S === 'all' ? ' (国・地域の設定が日本であること)' : 'アプリ (国・地域の設定が日本であること)'}`;
+      const t3 = `3.日本で発行された${payall}をお持ちの場合、${W_fallback}円以上の予約1回につき、${V_fallback}円の割引が更に適用されます`;
+      const t4 = P ? `4.本オファーは、${skuall}. 割引クーポンの適用は、対象の航空券に限りますのでご注意ください. 適用の可否を確認するには、お支払いを完了する前に、お支払いページで割引クーポンを入力してください` : '';
+      const t5 = `5.割引クーポンを利用するには、Trip.comの会員登録が必要です. 割引クーポンは、キャンペーン期間中、1つのアカウントにつき、${Q} 回までご利用いただけます`;
+      const t6 = '6.クーポンは数量限定で、先着順となります. クーポンは「航空券＋ホテル」の商品にはご利用いただけません. 他の割引クーポンとの併用はできません。現金または Trip Coins への交換はできません';
+      const t7 = '7.Trip.comは、キャンペーンの実施に関する全ての最終解釈・判断権を有します。';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, T5: t5, T6: t6, T7: t7, term: [t1, t2, t3, t4, t5, t6, t7].join('<br>') };
+    }
+
+    // ---- KR (Korean, KRW only) ----
+    function buildKR() {
+      if (G !== 'KRW') return null;
+      const t1 = `1. 프로모션 기간: ${startall}일~${endall}일 또는 재고 소진 시까지. (예약 성공 시) 할인코드는 선착순으로 사용할 수 있습니다.`;
+      const t2 = `2. 프로모션 플랫폼: 트립닷컴 ${S === 'all' ? '(한국어 버전)' : '앱(한국어 버전 7.93 이상).'}`;
+      const t3 = (() => {
+        const prodTail = (H === 'F') ? '<br>4. 할인코드는 참여 항공편에에만 적용할 수 있습니다. ' : (H === 'H') ? '<br>4. 할인코드는 참여 호텔에만 적용할 수 있습니다. ' : '';
+        return `3.한국에서 발급된 ${payall} 소지자에게는 ${W_fallback}원 이상 예약 건마다 ${V_fallback}원 상당의 추가 할인이 제공됩니다.${prodTail}할인코드 적용 가능 여부를 확인하려면 최종 결제 전에 결제 페이지에 코드를 입력하세요.`;
+      })();
+      const t4 = `5.  할인코드를 사용하려면 트립닷컴에 가입해야 합니다. 할인코드는 프로모션 기간 동안 계정당 ${Q} 회까지 사용할 수 있습니다. 할인코드는 현금으로 교환할 수 없습니다.`;
+      const t5 = '6. 할인코드는 트립닷컴 외 캐시백 앱과 함께 사용할 수 없습니다.';
+      const t6 = '7. 논쟁 시, Trip.com에 최종 해석 권한이 있습니다.';
+      return { T1: t1, T2: t2, T3: t3, T4: t4, term: [t1, t2, t3, t4, t5, t6].join('<br>') };
+    }
+
+    const CN = buildCN(), MY = buildMY(), ID = buildID(), TH = buildTH(), VN = buildVN(), HK = buildHK(), TW = buildTW(), JP = buildJP(), KR = buildKR();
+
+    return {
+      name: { EN: nameEN.trim(), ALL: nameALL.trim(), ZHMY: nameZHMY ? nameZHMY.trim() : '' },
+      terms: {
+        EN: termsEN,
+        CN: CN ? CN.term : '',
+        MY: MY ? MY.term : '',
+        ID: ID ? ID.term : '',
+        TH: TH ? TH.term : '',
+        VN: VN ? VN.term : '',
+        HK: HK ? HK.term : '',
+        TW: TW ? TW.term : '',
+        JP: JP ? JP.term : '',
+        KR: KR ? KR.term : ''
+      },
+      snippets: {
+        mechEN: mechENv, mechALL: mechAllv,
+        limitEN: limitEN_.trim(), limitALL: limitAll_.trim(), limitZHMY: limitzhmy.trim(),
+        skuEN, skuALL: skuall, skuZHMY: skuzhmy,
+        startEN, startALL: startall, startZHMY: startzhmy,
+        endEN, endALL: endall, endZHMY: endzhmy,
+        timeEN, timeZH,
+        tdEN: tdEN_, tdALL: tdall, tdZHMY: tdzhmy,
+        payEN, payALL: payall, payZHMY: payzhmy,
+        playidname
+      },
+      meta: {
+        pctCaveat,
+        activeLangs: ['EN'].concat(
+          [['CN', CN], ['MY', MY], ['ID', ID], ['TH', TH], ['VN', VN], ['HK', HK], ['TW', TW], ['JP', JP], ['KR', KR]]
+            .filter(([, v]) => v).map(([k]) => k)
+        )
+      }
+    };
+  }
+
+  return { generate };
+}
+
+
+
+/* ================= APP ================= */
+(function(){
+  const engine = buildEngine(DATA);
+
+  const LANG_LABELS = {
+    EN:'英文 EN', CN:'中文 CN', MY:'马来语 MY', ID:'印尼语 ID', TH:'泰语 TH',
+    VN:'越南语 VN', HK:'繁中-港 HK', TW:'繁中-台 TW', JP:'日语 JP', KR:'韩语 KR'
+  };
+  const CCY_LIST = ['SGD','MYR','IDR','THB','VND','HKD','TWD','JPY','KRW','PHP'];
+
+  function $(id){ return document.getElementById(id); }
+
+  // populate currency select
+  const currSel = $('in-curr');
+  DATA.currency.filter(c => CCY_LIST.includes(c.ccy)).sort((a,b)=> CCY_LIST.indexOf(a.ccy)-CCY_LIST.indexOf(b.ccy)).forEach(c=>{
+    const opt = document.createElement('option');
+    opt.value = c.ccy;
+    opt.textContent = `${c.ccy} · ${c.country} (${c.symbol})`;
+    currSel.appendChild(opt);
+  });
+  currSel.value = 'SGD';
+
+  // populate time-of-day select (24 options) + payment datalist
+  const tagSel = $('in-tag');
+  DATA.times.forEach(t=>{
+    const o = document.createElement('option');
+    o.value = t.en.toLowerCase();
+    o.textContent = `${t.en} (${t.zh})`;
+    tagSel.appendChild(o);
+  });
+  tagSel.value = '12am';
+
+  const paySel = $('in-payment');
+  const payNone = document.createElement('option');
+  payNone.value = ''; payNone.textContent = '不限卡组织';
+  paySel.appendChild(payNone);
+  DATA.payments.slice().sort((a,b)=> a.code.localeCompare(b.code)).forEach(p=>{
+    const o = document.createElement('option');
+    o.value = p.code;
+    o.textContent = `${p.code} — ${p.en}`;
+    paySel.appendChild(o);
+  });
+
+  function refreshSkuList(){
+    const product = currentProduct();
+    const table = product === 'F' ? DATA.F : product === 'H' ? DATA.H : DATA.P;
+    const sel = $('in-sku');
+    const prevValue = sel.value;
+    sel.innerHTML = '';
+    table.slice().sort((a,b)=> (a.sku==='all'?-1:b.sku==='all'?1:0) || String(a.sku).localeCompare(String(b.sku))).forEach(r=>{
+      const o = document.createElement('option');
+      o.value = r.sku;
+      o.textContent = `${r.sku} — ${r.en}`;
+      sel.appendChild(o);
+    });
+    // 切换产品类型时尽量保留原来选的代码，若新表里没有则退回 all
+    if ([...sel.options].some(o => o.value === prevValue)) sel.value = prevValue;
+    else sel.value = 'all';
+  }
+
+  // segmented controls
+  function wireSeg(id, onChange){
+    const el = $(id);
+    el.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        el.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        onChange && onChange(btn.dataset.v);
+        render();
+      });
+    });
+  }
+  function segValue(id){
+    return document.querySelector(`#${id} button.active`).dataset.v;
+  }
+
+  function currentProduct(){ return $('in-product').value; }
+
+  $('in-product').addEventListener('change', ()=>{ refreshSkuList(); render(); });
+  wireSeg('in-type');
+  wireSeg('in-device');
+  wireSeg('in-discmode', (v)=>{
+    $('block-fixed').classList.toggle('active', v==='fixed');
+    $('block-pct').classList.toggle('active', v==='pct');
+  });
+
+  // default dates
+  const today = new Date();
+  function toISO(d){ return d.toISOString().slice(0,10); }
+  $('in-start').value = toISO(today);
+  const endDefault = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 60);
+  $('in-end').value = toISO(endDefault);
+
+  // wire all inputs to re-render
+  ['in-start','in-end','in-discamt','in-minspend1','in-discpct','in-cap','in-minspend2',
+   'in-usage','in-traveldate','in-qty','in-newonly']
+    .forEach(id => $(id).addEventListener('input', render));
+  ['in-curr','in-tag','in-sku','in-payment'].forEach(id => $(id).addEventListener('change', render));
+
+  refreshSkuList();
+
+  // 适用范围/支付卡组织 实时匹配提示 —— sku 对应 F/H/P 表第一列代码，payment 对应 VL 表支付方式代码
+  function updateMatchHints(){
+    const skuHint = $('sku-match-hint');
+    const skuVal = $('in-sku').value.trim();
+    if (!skuVal){
+      skuHint.textContent = ''; skuHint.className = 'match-hint';
+    } else if (skuVal.toLowerCase() === 'all'){
+      skuHint.textContent = '✓ all = 全部参与活动的产品，不会在条款里加限制说明';
+      skuHint.className = 'match-hint';
+    } else {
+      const product = currentProduct();
+      const table = product === 'F' ? DATA.F : product === 'H' ? DATA.H : DATA.P;
+      const row = table.find(r => String(r.sku).toLowerCase() === skuVal.toLowerCase());
+      if (row){
+        skuHint.textContent = `✓ 匹配到: ${row.en}`;
+        skuHint.className = 'match-hint';
+      } else {
+        skuHint.textContent = `⚠ 在当前产品类型对应的表里没找到这个代码，条款里会直接显示原文"${skuVal}"`;
+        skuHint.className = 'match-hint warn';
+      }
+    }
+
+    const payHint = $('payment-match-hint');
+    const payVal = $('in-payment').value.trim();
+    if (!payVal){
+      payHint.textContent = ''; payHint.className = 'match-hint';
+    } else {
+      const row = DATA.payments.find(r => String(r.code).toLowerCase() === payVal.toLowerCase());
+      if (row){
+        payHint.textContent = `✓ 匹配到: ${row.en}`;
+        payHint.className = 'match-hint';
+      } else {
+        payHint.textContent = `⚠ 没找到这个卡组织代码，条款里会直接显示原文"${payVal}"`;
+        payHint.className = 'match-hint warn';
+      }
+    }
+  }
+  ['in-sku','in-payment','in-product'].forEach(id => $(id).addEventListener('change', updateMatchHints));
+  updateMatchHints();
+
+  function parseDateInput(val){
+    if(!val) return null;
+    const [y,m,d] = val.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+
+  function collectInput(){
+    const discMode = segValue('in-discmode');
+    return {
+      curr: $('in-curr').value,
+      product: currentProduct(),
+      start: parseDateInput($('in-start').value),
+      end: parseDateInput($('in-end').value),
+      type: segValue('in-type'),
+      sku: $('in-sku').value.trim(),
+      usage: Number($('in-usage').value) || 1,
+      payment: $('in-payment').value.trim(),
+      device: segValue('in-device') === 'app' ? '' : 'all',
+      newUserOnly: $('in-newonly').checked,
+      traveldate: parseDateInput($('in-traveldate').value),
+      discountAmt: discMode === 'fixed' ? (parseFloat($('in-discamt').value) || null) : null,
+      minSpend: discMode === 'fixed' ? (parseFloat($('in-minspend1').value) || null) : (parseFloat($('in-minspend2').value) || null),
+      discountPct: discMode === 'pct' ? (parseFloat($('in-discpct').value) / 100 || null) : null,
+      cap: discMode === 'pct' ? (parseFloat($('in-cap').value) || null) : null,
+      tag: $('in-tag').value.trim(),
+      initialQty: parseFloat($('in-qty').value) || null
+    };
+  }
+
+  function copyBtn(text){
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '复制';
+    btn.addEventListener('click', ()=>{
+      navigator.clipboard.writeText(text || '').then(()=>{
+        btn.textContent = '已复制';
+        btn.classList.add('copied');
+        setTimeout(()=>{ btn.textContent = '复制'; btn.classList.remove('copied'); }, 1200);
+      });
+    });
+    return btn;
+  }
+
+  function makeBlock(tagText, subText, bodyText, asHtmlBr){
+    const block = document.createElement('div');
+    block.className = 'block';
+    const head = document.createElement('div');
+    head.className = 'block-head';
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.innerHTML = tagText + (subText ? `<small>${subText}</small>` : '');
+    head.appendChild(tag);
+    head.appendChild(copyBtn(bodyText));
+    block.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'block-body' + (bodyText ? '' : ' empty');
+    if (bodyText){
+      body.textContent = asHtmlBr ? bodyText.split('<br>').join('\n') : bodyText;
+    } else {
+      body.textContent = '（当前币种无此语言模板，不生成）';
+    }
+    block.appendChild(body);
+    return block;
+  }
+
+  let activeLangTab = 'EN';
+
+  function render(){
+    let input, result;
+    try {
+      input = collectInput();
+      if (!input.curr || !input.start || !input.end) { renderEmpty(); return; }
+      if (input.discountAmt == null && (input.discountPct == null || input.cap == null)) { renderEmpty(); return; }
+      result = engine.generate(input);
+    } catch(e){
+      renderEmpty('生成失败：' + e.message);
+      console.error(e);
+      return;
+    }
+
+    // caveat banner
+    $('pct-caveat-banner').classList.toggle('show', !!result.meta.pctCaveat);
+
+    // name blocks
+    const nameWrap = $('name-blocks');
+    nameWrap.innerHTML = '';
+    nameWrap.appendChild(makeBlock('EN', '', result.name.EN));
+    nameWrap.appendChild(makeBlock('本地语言', '', result.name.ALL));
+    if (result.name.ZHMY) nameWrap.appendChild(makeBlock('中文(马来西亚)', '', result.name.ZHMY));
+
+    // lang tabs
+    const allLangs = Object.keys(LANG_LABELS);
+    const active = result.meta.activeLangs;
+    const tabsWrap = $('lang-tabs');
+    tabsWrap.innerHTML = '';
+    if (!active.includes(activeLangTab)) activeLangTab = 'EN';
+    allLangs.forEach(code=>{
+      const btn = document.createElement('button');
+      btn.textContent = LANG_LABELS[code];
+      const isActive = active.includes(code);
+      if (!isActive) btn.disabled = true;
+      if (code === activeLangTab) btn.classList.add('active');
+      btn.addEventListener('click', ()=>{ activeLangTab = code; render(); });
+      tabsWrap.appendChild(btn);
+    });
+    $('lang-availability-hint').textContent = `(当前币种可生成: ${active.map(c=>LANG_LABELS[c]).join('、')})`;
+
+    const termWrap = $('term-blocks');
+    termWrap.innerHTML = '';
+    termWrap.appendChild(makeBlock(LANG_LABELS[activeLangTab], '', result.terms[activeLangTab], true));
+
+    // snippets
+    const s = result.snippets;
+    const snippetWrap = $('snippet-area');
+    snippetWrap.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'snippet-grid';
+    const items = [
+      ['机制 (EN)', s.mechEN], ['机制 (本地)', s.mechALL],
+      ['限制 (EN)', s.limitEN], ['限制 (本地)', s.limitALL],
+      ['适用范围 (EN)', s.skuEN], ['适用范围 (本地)', s.skuALL],
+      ['开始日期 (EN)', s.startEN], ['开始日期 (本地)', s.startALL],
+      ['结束日期 (EN)', s.endEN], ['结束日期 (本地)', s.endALL],
+      ['时段 (EN)', s.timeEN], ['时段 (中文)', s.timeZH],
+      ['出行截止 (EN)', s.tdEN], ['出行截止 (本地)', s.tdALL],
+      ['支付方式 (EN)', s.payEN], ['支付方式 (本地)', s.payALL],
+      ['PlayID 命名建议', s.playidname]
+    ];
+    if (result.name.ZHMY){
+      items.push(['限制 (马来西亚中文)', s.limitZHMY], ['适用范围 (马来西亚中文)', s.skuZHMY],
+        ['开始日期 (马来西亚中文)', s.startZHMY], ['结束日期 (马来西亚中文)', s.endZHMY],
+        ['出行截止 (马来西亚中文)', s.tdZHMY], ['支付方式 (马来西亚中文)', s.payZHMY]);
+    }
+    items.forEach(([label, val])=>{
+      const cell = document.createElement('div');
+      cell.className = 'snippet';
+      const k = document.createElement('div'); k.className='k'; k.textContent = label;
+      const v = document.createElement('div'); v.className = 'v' + (val ? '' : ' empty'); v.textContent = val || '（无）';
+      cell.appendChild(k); cell.appendChild(v);
+      cell.addEventListener('dblclick', ()=>{ if(val) navigator.clipboard.writeText(val); });
+      cell.title = '双击复制';
+      grid.appendChild(cell);
+    });
+    snippetWrap.appendChild(grid);
+  }
+
+  function renderEmpty(msg){
+    $('name-blocks').innerHTML = `<div class="empty-state">${msg || '请完整填写左侧必填字段（币种/产品类型/起止日期/折扣信息）'}</div>`;
+    $('term-blocks').innerHTML = '';
+    $('lang-tabs').innerHTML = '';
+    $('lang-availability-hint').textContent = '';
+    $('snippet-area').innerHTML = '';
+    $('pct-caveat-banner').classList.remove('show');
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
