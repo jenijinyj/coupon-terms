@@ -107,18 +107,10 @@
   .block-body{padding:12px 13px;font-size:13px;white-space:pre-wrap;word-break:break-word;}
   .block-body.empty{color:#b7bec6;font-style:normal;}
 
-  .snippet-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  @media (max-width:640px){.snippet-grid{grid-template-columns:1fr;}}
-  .snippet{border:1px solid var(--line-soft);border-radius:7px;padding:8px 10px;}
-  .snippet .k{font-size:11px;color:var(--ink-soft);margin-bottom:3px;}
-  .snippet .v{font-size:12.5px;word-break:break-word;}
-  .snippet .v.empty{color:#c3c9cf;}
-
-  details.more{margin-top:4px;}
-  details.more summary{cursor:pointer;font-size:12.5px;color:var(--accent);padding:6px 0;list-style:none;}
-  details.more summary::-webkit-details-marker{display:none;}
-  details.more summary:before{content:"▸ ";}
-  details.more[open] summary:before{content:"▾ ";}
+  .snippet-group{display:grid;gap:10px;margin-bottom:10px;}
+  .snippet-group:last-child{margin-bottom:0;}
+  .snippet-group .block{margin-bottom:0;}
+  @media (max-width:640px){.snippet-group{grid-template-columns:1fr !important;}}
 
   .lang-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
   .lang-tabs button{
@@ -230,6 +222,21 @@
       </div>
 
       <div class="card">
+        <h2>命名信息 <span class="hint">只用于拼优惠券内部识别名，不影响条款正文</span></h2>
+
+        <div class="row2">
+          <div class="field">
+            <label>成本中心 Cost Center</label>
+            <input type="text" id="in-costcenter" placeholder="例如 OA / 1840" value="OA">
+          </div>
+          <div class="field">
+            <label>活动代号 Project</label>
+            <input type="text" id="in-project" placeholder="例如 DBS BAU" value="DBS BAU">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>可选信息 <span class="hint">不填则按默认处理</span></h2>
 
         <div class="field">
@@ -283,11 +290,6 @@
       </div>
 
       <div class="card">
-        <h2>活动名称</h2>
-        <div id="name-blocks"></div>
-      </div>
-
-      <div class="card">
         <h2>条款 <span class="hint" id="lang-availability-hint"></span></h2>
         <div class="lang-tabs" id="lang-tabs"></div>
         <div id="term-blocks"></div>
@@ -295,10 +297,7 @@
 
       <div class="card">
         <h2>文案片段 <span class="hint">用于拼装落地页/banner等素材</span></h2>
-        <details class="more">
-          <summary>展开查看机制 / 限制 / 适用范围 / 日期 / 支付方式等片段</summary>
-          <div id="snippet-area" style="margin-top:12px;"></div>
-        </details>
+        <div id="snippet-area" style="margin-top:12px;"></div>
       </div>
     </div>
   </div>
@@ -431,6 +430,25 @@ function buildEngine(DATA) {
 
     const hasPct = (X !== null && X !== undefined && X !== '');
     const hasMin = (W !== null && W !== undefined && W !== '');
+
+    // ---------------- 优惠券名称(内部识别代码/Column1) ----------------
+    function buildSlug() {
+      if (!G) return '';
+      const K = inp.costCenter || '';
+      const C = inp.project || '';
+      const ccyPrefix = String(G).slice(0, 2).toLowerCase();
+      const ccPart = String(K).replace(/External/g, 'ext').toLowerCase();
+      const prodCode = (H === 'F') ? 'flt' : (H === 'H') ? 'htl' : (H === 'P') ? 'tnt' : (H === 'X') ? 'bs' : String(H).toLowerCase();
+      let amt;
+      if (!hasPct) amt = (G === 'IDR' || G === 'VND') ? Math.round(V / 1000) : V;
+      else amt = (G === 'IDR' || G === 'VND') ? Math.round(Y / 1000) : Y;
+      const mmdd = (d) => pad2(d.getMonth() + 1) + pad2(d.getDate());
+      const datePart = mmdd(I) + '/' + mmdd(J);
+      const projPart = String(C).toLowerCase().replace(/ /g, '');
+      const tagPart = L ? ('_' + String(L).toLowerCase().split(' ')[0]) : '';
+      return `${ccyPrefix}_${ccPart}_${prodCode}${amt}_${datePart}_${projPart}${tagPart}`;
+    }
+    const slug = buildSlug();
 
     // ---------------- date / time building blocks ----------------
     const startEN = dMonthY(I, 'en');
@@ -598,6 +616,16 @@ function buildEngine(DATA) {
       // fallback: 限制EN placeholder (DN2 fallback in original points to 限制EN which is unusual; keep EN mech as fallback)
       return mechEN();
     }
+    // 机制(马来西亚中文) —— 原表 nameZHMY 公式里内嵌的机制部分，专供马来西亚华人读者，与 mechAll() 的马来文不同
+    function mechZHMY() {
+      if (G !== 'MYR') return '';
+      if (!hasPct) {
+        if (!hasMin) return `${prodZH}立减RM${V}`;
+        return `满RM${W}减RM${V}`;
+      }
+      if (!hasMin) return `${zheDisplay(X)}折优惠 折扣高达RM${Y}`;
+      return `${zheDisplay(X)}折优惠 折扣高达RM${Y} 最低消费RM${W}`;
+    }
 
     // ---------------- restriction (限制) ----------------
     function limitEN() {
@@ -675,17 +703,10 @@ function buildEngine(DATA) {
     // ---------------- name ----------------
     const mechENv = mechEN();
     const mechAllv = mechAll();
+    const mechZHMYv = mechZHMY();
     const nameEN = mechENv + (limitEN_.trim() ? ' ' + limitEN_.trim() + ' ' : '');
     const nameALL = mechAllv + (limitAll_.trim() ? ' ' + limitAll_.trim() + ' ' : '');
-    const nameZHMY = (G === 'MYR') ? (() => {
-      let disc;
-      if (!hasPct) {
-        disc = !hasMin ? `立减RM${V}` : `满RM${W}减RM${V}`;
-      } else {
-        disc = !hasMin ? `${zheDisplay(X)}折优惠 折扣高达RM${Y}` : `${zheDisplay(X)}折优惠 折扣高达RM${Y} 最低消费RM${W}`;
-      }
-      return disc + (limitzhmy.trim() ? ' ' + limitzhmy.trim() : '');
-    })() : '';
+    const nameZHMY = (G === 'MYR') ? (mechZHMYv + (limitzhmy.trim() ? ' ' + limitzhmy.trim() : '')) : '';
 
     // ---------------- T1-T6 per language ----------------
     const dayCount = Math.round((J - I) / 86400000);
@@ -1003,6 +1024,7 @@ function buildEngine(DATA) {
     const CN = buildCN(), MY = buildMY(), ID = buildID(), TH = buildTH(), VN = buildVN(), HK = buildHK(), TW = buildTW(), JP = buildJP(), KR = buildKR();
 
     return {
+      slug,
       name: { EN: nameEN.trim(), ALL: nameALL.trim(), ZHMY: nameZHMY ? nameZHMY.trim() : '' },
       terms: {
         EN: termsEN,
@@ -1017,7 +1039,7 @@ function buildEngine(DATA) {
         KR: KR ? KR.term : ''
       },
       snippets: {
-        mechEN: mechENv, mechALL: mechAllv,
+        mechEN: mechENv, mechALL: mechAllv, mechZHMY: mechZHMYv,
         limitEN: limitEN_.trim(), limitALL: limitAll_.trim(), limitZHMY: limitzhmy.trim(),
         skuEN, skuALL: skuall, skuZHMY: skuzhmy,
         startEN, startALL: startall, startZHMY: startzhmy,
@@ -1137,7 +1159,7 @@ function buildEngine(DATA) {
 
   // wire all inputs to re-render
   ['in-start','in-end','in-discamt','in-minspend1','in-discpct','in-cap','in-minspend2',
-   'in-usage','in-traveldate','in-qty','in-newonly']
+   'in-usage','in-traveldate','in-qty','in-newonly','in-costcenter','in-project']
     .forEach(id => $(id).addEventListener('input', render));
   ['in-curr','in-tag','in-sku','in-payment'].forEach(id => $(id).addEventListener('change', render));
 
@@ -1208,7 +1230,9 @@ function buildEngine(DATA) {
       discountPct: discMode === 'pct' ? (parseFloat($('in-discpct').value) / 100 || null) : null,
       cap: discMode === 'pct' ? (parseFloat($('in-cap').value) || null) : null,
       tag: $('in-tag').value.trim(),
-      initialQty: parseFloat($('in-qty').value) || null
+      initialQty: parseFloat($('in-qty').value) || null,
+      costCenter: $('in-costcenter').value.trim(),
+      project: $('in-project').value.trim()
     };
   }
 
@@ -1226,7 +1250,7 @@ function buildEngine(DATA) {
     return btn;
   }
 
-  function makeBlock(tagText, subText, bodyText, asHtmlBr){
+  function makeBlock(tagText, subText, bodyText, asHtmlBr, emptyText){
     const block = document.createElement('div');
     block.className = 'block';
     const head = document.createElement('div');
@@ -1242,10 +1266,20 @@ function buildEngine(DATA) {
     if (bodyText){
       body.textContent = asHtmlBr ? bodyText.split('<br>').join('\n') : bodyText;
     } else {
-      body.textContent = '（当前币种无此语言模板，不生成）';
+      body.textContent = emptyText || '（当前币种无此语言模板，不生成）';
     }
     block.appendChild(body);
     return block;
+  }
+
+  function makeSnippetGroup(cells){
+    const row = document.createElement('div');
+    row.className = 'snippet-group';
+    row.style.gridTemplateColumns = `repeat(${cells.length}, 1fr)`;
+    cells.forEach(([label, value])=>{
+      row.appendChild(makeBlock(label, '', value, false, '（无）'));
+    });
+    return row;
   }
 
   let activeLangTab = 'EN';
@@ -1265,13 +1299,6 @@ function buildEngine(DATA) {
 
     // caveat banner
     $('pct-caveat-banner').classList.toggle('show', !!result.meta.pctCaveat);
-
-    // name blocks
-    const nameWrap = $('name-blocks');
-    nameWrap.innerHTML = '';
-    nameWrap.appendChild(makeBlock('EN', '', result.name.EN));
-    nameWrap.appendChild(makeBlock('本地语言', '', result.name.ALL));
-    if (result.name.ZHMY) nameWrap.appendChild(makeBlock('中文(马来西亚)', '', result.name.ZHMY));
 
     // lang tabs
     const allLangs = Object.keys(LANG_LABELS);
@@ -1298,39 +1325,41 @@ function buildEngine(DATA) {
     const s = result.snippets;
     const snippetWrap = $('snippet-area');
     snippetWrap.innerHTML = '';
-    const grid = document.createElement('div');
-    grid.className = 'snippet-grid';
-    const items = [
-      ['机制 (EN)', s.mechEN], ['机制 (本地)', s.mechALL],
-      ['限制 (EN)', s.limitEN], ['限制 (本地)', s.limitALL],
-      ['适用范围 (EN)', s.skuEN], ['适用范围 (本地)', s.skuALL],
-      ['开始日期 (EN)', s.startEN], ['开始日期 (本地)', s.startALL],
-      ['结束日期 (EN)', s.endEN], ['结束日期 (本地)', s.endALL],
-      ['时段 (EN)', s.timeEN], ['时段 (中文)', s.timeZH],
-      ['出行截止 (EN)', s.tdEN], ['出行截止 (本地)', s.tdALL],
-      ['支付方式 (EN)', s.payEN], ['支付方式 (本地)', s.payALL],
-      ['PlayID 命名建议', s.playidname]
+    const isZhmy = !!result.name.ZHMY;
+    // 每组按该字段实际存在的语言变体数(1/2/3)单独成一行，MYR才有3列(EN/本地/马来西亚中文)
+    const groups = [
+      [['优惠券名称', result.slug], ['PlayID 命名建议', s.playidname]],
+      isZhmy
+        ? [['标题 (EN)', result.name.EN], ['标题 (本地)', result.name.ALL], ['标题 (马来西亚中文)', result.name.ZHMY]]
+        : [['标题 (EN)', result.name.EN], ['标题 (本地)', result.name.ALL]],
+      isZhmy
+        ? [['机制 (EN)', s.mechEN], ['机制 (本地)', s.mechALL], ['机制 (马来西亚中文)', s.mechZHMY]]
+        : [['机制 (EN)', s.mechEN], ['机制 (本地)', s.mechALL]],
+      isZhmy
+        ? [['限制 (EN)', s.limitEN], ['限制 (本地)', s.limitALL], ['限制 (马来西亚中文)', s.limitZHMY]]
+        : [['限制 (EN)', s.limitEN], ['限制 (本地)', s.limitALL]],
+      isZhmy
+        ? [['适用范围 (EN)', s.skuEN], ['适用范围 (本地)', s.skuALL], ['适用范围 (马来西亚中文)', s.skuZHMY]]
+        : [['适用范围 (EN)', s.skuEN], ['适用范围 (本地)', s.skuALL]],
+      isZhmy
+        ? [['开始日期 (EN)', s.startEN], ['开始日期 (本地)', s.startALL], ['开始日期 (马来西亚中文)', s.startZHMY]]
+        : [['开始日期 (EN)', s.startEN], ['开始日期 (本地)', s.startALL]],
+      isZhmy
+        ? [['结束日期 (EN)', s.endEN], ['结束日期 (本地)', s.endALL], ['结束日期 (马来西亚中文)', s.endZHMY]]
+        : [['结束日期 (EN)', s.endEN], ['结束日期 (本地)', s.endALL]],
+      [['时段 (EN)', s.timeEN], ['时段 (中文)', s.timeZH]],
+      isZhmy
+        ? [['出行截止 (EN)', s.tdEN], ['出行截止 (本地)', s.tdALL], ['出行截止 (马来西亚中文)', s.tdZHMY]]
+        : [['出行截止 (EN)', s.tdEN], ['出行截止 (本地)', s.tdALL]],
+      isZhmy
+        ? [['支付方式 (EN)', s.payEN], ['支付方式 (本地)', s.payALL], ['支付方式 (马来西亚中文)', s.payZHMY]]
+        : [['支付方式 (EN)', s.payEN], ['支付方式 (本地)', s.payALL]]
     ];
-    if (result.name.ZHMY){
-      items.push(['限制 (马来西亚中文)', s.limitZHMY], ['适用范围 (马来西亚中文)', s.skuZHMY],
-        ['开始日期 (马来西亚中文)', s.startZHMY], ['结束日期 (马来西亚中文)', s.endZHMY],
-        ['出行截止 (马来西亚中文)', s.tdZHMY], ['支付方式 (马来西亚中文)', s.payZHMY]);
-    }
-    items.forEach(([label, val])=>{
-      const cell = document.createElement('div');
-      cell.className = 'snippet';
-      const k = document.createElement('div'); k.className='k'; k.textContent = label;
-      const v = document.createElement('div'); v.className = 'v' + (val ? '' : ' empty'); v.textContent = val || '（无）';
-      cell.appendChild(k); cell.appendChild(v);
-      cell.addEventListener('dblclick', ()=>{ if(val) navigator.clipboard.writeText(val); });
-      cell.title = '双击复制';
-      grid.appendChild(cell);
-    });
-    snippetWrap.appendChild(grid);
+    groups.forEach(cells => snippetWrap.appendChild(makeSnippetGroup(cells)));
   }
 
   function renderEmpty(msg){
-    $('name-blocks').innerHTML = `<div class="empty-state">${msg || '请完整填写左侧必填字段（币种/产品类型/起止日期/折扣信息）'}</div>`;
+    $('snippet-area').innerHTML = `<div class="empty-state">${msg || '请完整填写左侧必填字段（币种/产品类型/起止日期/折扣信息）'}</div>`;
     $('term-blocks').innerHTML = '';
     $('lang-tabs').innerHTML = '';
     $('lang-availability-hint').textContent = '';
